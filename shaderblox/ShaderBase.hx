@@ -1,5 +1,5 @@
 package shaderblox;
-import shaderblox.uniforms.FloatAttribute;
+import shaderblox.attributes.FloatAttribute;
 import shaderblox.uniforms.IAppliable;
 import shaderblox.uniforms.UTexture;
 import lime.gl.GL;
@@ -10,7 +10,7 @@ import lime.gl.GLShader;
  * @author Andreas Rønning
  */
 @:shaderNoBuild
-@:autoBuild(croissant.renderer.ShaderBuilder.build()) 
+@:autoBuild(shaderblox.macro.ShaderBuilder.build()) 
 class ShaderBase
 {	
 	public var active:Bool;

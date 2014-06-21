@@ -1,4 +1,4 @@
-package shaderblox;
+package shaderblox.macro;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Expr.Field;
@@ -34,20 +34,11 @@ class ShaderBuilder
 					str = getString(i.params[0]);
 					str = pragmas(unifyLineEndings(str));
 					out[0] = str;
-					//var expr = macro { $v { str }};
-					//f.kind = FVar(t, expr);
-					//var src:Array<String> = str.split("\n");
-					//buildUniforms(position, newFields, src);
-					//buildAttributes(position, newFields, src);
 				case ":frag":
 					foundFrag = true; 
 					str = getString(i.params[0]);
 					str = pragmas(unifyLineEndings(str));
 					out[1] = str;
-					//var expr = macro { $v { str }};
-					//f.kind = FVar(t, expr);
-					//var src:Array<String> = str.split("\n");
-					//buildUniforms(position, newFields, src);
 			}
 		}
 		return out;
@@ -92,8 +83,6 @@ class ShaderBuilder
 		
 		if(vertSource!=""){
 			vertSource = pragmas(unifyLineEndings(vertSource));
-			//var expr = macro { $v { str }};
-			//f.kind = FVar(t, expr);
 			var lines:Array<String> = vertSource.split("\n");
 			buildUniforms(position, newFields, lines);
 			buildAttributes(position, newFields, lines);
@@ -102,8 +91,6 @@ class ShaderBuilder
 		}
 		if(fragSource!=""){
 			fragSource = pragmas(unifyLineEndings(fragSource));
-			//var expr = macro { $v { str }};
-			//f.kind = FVar(t, expr);
 			var lines:Array<String> = fragSource.split("\n");
 			buildUniforms(position, newFields, lines);
 		}else {
@@ -144,7 +131,7 @@ class ShaderBuilder
 		for (existing in attributeFields) {
 			if (existing.fieldName == name) return; 
 		}
-		var pack = ["croissant", "renderer", "uniforms"];
+		var pack = ["shaderblox", "attributes"];
 		var type = { pack : pack, name : "FloatAttribute", params : [], sub : null };
 		var numFloats:Int = 0;
 		switch(args[0]) {
@@ -186,7 +173,7 @@ class ShaderBuilder
 		for (existing in uniformFields) {
 			if (existing.fieldName == name) return; 
 		}
-		var pack = ["croissant", "renderer", "uniforms"];
+		var pack = ["shaderblox", "uniforms"];
 		var type = { pack : pack, name : "UMatrix", params : [], sub : null };
 		switch(args[0]) {
 			case "sampler2D":
@@ -219,7 +206,6 @@ class ShaderBuilder
 	}
 	
 	static function getString(e:Expr):String {
-		//trace("String: " + e);
 		switch( e.expr ) {
 			case EConst(c):
 				switch( c ) {

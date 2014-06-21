@@ -1,4 +1,4 @@
-package shaderblox.uniforms;
+package shaderblox.attributes;
 
 /**
  * ...
