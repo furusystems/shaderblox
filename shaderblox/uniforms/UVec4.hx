@@ -3,7 +3,7 @@ import lime.gl.GL;
 import lime.utils.Vector3D;
 
 /**
- * ...
+ * Vector4 float uniform
  * @author Andreas Rønning
  */
 class UVec4 extends UniformBase<Vector3D> implements IAppliable  {

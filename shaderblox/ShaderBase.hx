@@ -5,11 +5,14 @@ import shaderblox.uniforms.UTexture;
 import lime.gl.GL;
 import lime.gl.GLProgram;
 import lime.gl.GLShader;
+
 /**
- * ...
+ * Base shader type. Extend this to define new shader objects.
+ * Subclasses of ShaderBase must define shader source metadata. 
+ * See example/SimpleShader.hx.
  * @author Andreas Rønning
  */
-@:shaderNoBuild
+
 @:autoBuild(shaderblox.macro.ShaderBuilder.build()) 
 class ShaderBase
 {	
@@ -25,7 +28,7 @@ class ShaderBase
 	var ready:Bool;
 	var numTextures:Int;
 	
-	function new() {
+	private function new() {
 		uniforms = [];
 		uniformMap = new Map<String,IAppliable>();
 		attributes = [];
@@ -47,8 +50,6 @@ class ShaderBase
 	}
 	
 	function initFromSource(vertSource:String, fragSource:String) {
-		trace("vert: " + vertSource);
-		trace("frag: " + fragSource);
 		var vertexShader = GL.createShader (GL.VERTEX_SHADER);
 		numTextures = 0;
 		GL.shaderSource (vertexShader, vertSource);
@@ -107,7 +108,7 @@ class ShaderBase
 			if (Std.is(u, UTexture) && u.location != -1) {
 				cast(u, UTexture).samplerIndex = numTextures++;
 			}
-			#if debug trace("Defined uniform "+u.name+" at "+u.location); #end
+			#if (debug && !display) trace("Defined uniform "+u.name+" at "+u.location); #end
 		}
 		
 		//Validate attribute locations
@@ -115,11 +116,11 @@ class ShaderBase
 			var loc = attributeLocations.get(a.name);
 			a.location = loc == null? -1:loc;
 			if (a.location == -1) trace("WARNING(" + name + "): unused attribute '" + a.name +"'");
-			#if debug trace("Defined attribute "+a.name+" at "+a.location); #end
+			#if (debug && !display) trace("Defined attribute "+a.name+" at "+a.location); #end
 		}
 	}
 	
-	public inline function activate(initUniforms:Bool = true, initAttribs:Bool = false):Void {
+	public function activate(initUniforms:Bool = true, initAttribs:Bool = false):Void {
 		if (active) return;
 		if (!ready) create();
 		GL.useProgram(prog);
@@ -127,7 +128,8 @@ class ShaderBase
 		if (initAttribs) setAttributes();
 		active = true;
 	}
-	public inline function deactivate():Void {
+	
+	public function deactivate():Void {
 		if (!active) return;
 		active = false;
 		disableAttributes();
@@ -151,7 +153,7 @@ class ShaderBase
 			GL.vertexAttribPointer (idx, attributes[i].numFloats, GL.FLOAT, false, aStride, i*attributes[i].byteSize);
 		}
 	}
-	function disableAttributes() 
+	inline function disableAttributes() 
 	{
 		for (i in 0...attributes.length) {
 			var idx = attributes[i].location;

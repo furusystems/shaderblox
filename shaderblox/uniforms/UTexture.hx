@@ -3,7 +3,7 @@ import lime.gl.GL;
 import lime.gl.GLTexture;
 
 /**
- * ...
+ * GLTexture uniform
  * @author Andreas Rønning
  */
 class UTexture extends UniformBase<GLTexture> implements IAppliable  {

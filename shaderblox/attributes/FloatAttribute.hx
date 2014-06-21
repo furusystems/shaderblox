@@ -1,7 +1,7 @@
 package shaderblox.attributes;
 
 /**
- * ...
+ * 4-byte float vertex attribute occupying a variable number of floats
  * @author Andreas Rønning
  */
 class FloatAttribute extends Attribute

@@ -2,7 +2,7 @@ package shaderblox.uniforms;
 import lime.gl.GL;
 
 /**
- * ...
+ * Float uniform
  * @author Andreas Rønning
  */
 class UFloat extends UniformBase<Float> implements IAppliable  {

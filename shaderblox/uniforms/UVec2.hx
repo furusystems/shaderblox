@@ -2,7 +2,7 @@ package shaderblox.uniforms;
 import lime.gl.GL;
 
 /**
- * ...
+ * Vector2 float uniform
  * @author Andreas Rønning
  */
 #if flywheel

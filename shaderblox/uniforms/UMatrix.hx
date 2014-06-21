@@ -3,7 +3,7 @@ import lime.gl.GL;
 import lime.utils.Matrix3D;
 
 /**
- * ...
+ * Matrix3D uniform (not transposed)
  * @author Andreas Rønning
  */
 class UMatrix extends UniformBase<Matrix3D> implements IAppliable {
