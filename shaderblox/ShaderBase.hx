@@ -25,7 +25,7 @@ class ShaderBase
 	var ready:Bool;
 	var numTextures:Int;
 	
-	public function new() {
+	function new() {
 		uniforms = [];
 		uniformMap = new Map<String,IAppliable>();
 		attributes = [];

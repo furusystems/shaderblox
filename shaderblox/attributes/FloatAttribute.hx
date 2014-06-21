@@ -4,13 +4,10 @@ package shaderblox.attributes;
  * ...
  * @author Andreas Rønning
  */
-class FloatAttribute
+class FloatAttribute extends Attribute
 {
 	public var numFloats:Int;
-	public var byteSize:Int;
-	public var location:Int;
-	public var name:String;
-	public function new(name:String, location:Int, ?nFloats:Int = 1) 
+	public function new(name:String, location:Int, nFloats:Int = 1) 
 	{
 		this.name = name;
 		this.location = location;
