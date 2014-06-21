@@ -23,6 +23,7 @@ With shaderblox, a shader incompatible with the rendering framework will cause c
 2. Shader source validation is only done once the source is actually compiled on the GPU itself, which can only occur runtime. 
 3. GLSL parsing is currently *very* unsophisticated, looking specifically for attribute and uniform declarations and not much else.
 4. Work in progress.. Open source.. etc etc. This is a personal project and it's constantly liable to change.
+5. Shader A extends Shader B merges uniform/attribute declarations, but unfortunately allows duplicate function declarations, such as two mains and so forth. Looking to improve this, obviously.
 
 ## Example ##
 
