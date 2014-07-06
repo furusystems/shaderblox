@@ -64,13 +64,17 @@ class ShaderBuilder
 		vertSource = "";
 		fragSource = "";
 		
+		#if debug
 		trace("Building " + Context.getLocalClass());
+		#end
 		
 		
 		while (t2.superClass != null) {
 			t2 = t2.superClass.t.get();
-			if(t2.superClass!=null){
+			if (t2.superClass != null) {
+				#if debug
 				trace("\tIncluding: " + t2.name);
+				#end
 				sources.push(getSources(t2));
 			}
 		}

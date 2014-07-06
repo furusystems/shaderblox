@@ -1,10 +1,10 @@
 package shaderblox;
-import shaderblox.attributes.FloatAttribute;
-import shaderblox.uniforms.IAppliable;
-import shaderblox.uniforms.UTexture;
 import lime.gl.GL;
 import lime.gl.GLProgram;
 import lime.gl.GLShader;
+import shaderblox.attributes.FloatAttribute;
+import shaderblox.uniforms.IAppliable;
+import shaderblox.uniforms.UTexture;
 
 /**
  * Base shader type. Extend this to define new shader objects.
@@ -145,12 +145,13 @@ class ShaderBase
 	}
 	public function setAttributes() 
 	{
+		var offset:Int = 0;
 		for (i in 0...attributes.length) {
-			var idx = attributes[i].location;
-			if (idx == -1) continue;
-			
-			GL.enableVertexAttribArray(idx);
-			GL.vertexAttribPointer (idx, attributes[i].numFloats, GL.FLOAT, false, aStride, i*attributes[i].byteSize);
+			var location = attributes[i].location;
+			if (location == -1) continue;
+			GL.enableVertexAttribArray(location);
+			GL.vertexAttribPointer (location, attributes[i].numFloats, GL.FLOAT, false, aStride, offset);
+			offset += attributes[i].byteSize;
 		}
 	}
 	inline function disableAttributes() 
