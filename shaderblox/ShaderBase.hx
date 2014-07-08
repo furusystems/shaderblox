@@ -32,15 +32,18 @@ class ShaderBase
 		uniforms = [];
 		uniformMap = new Map<String,IAppliable>();
 		attributes = [];
-		name = (""+Type.getClass(this)).split(".").pop();
+		name = ("" + Type.getClass(this)).split(".").pop();
+		createProperties();
 	}
+	
+	private function createProperties():Void { }
+	
 	
 	public inline function getUniformByName(str:String):IAppliable {
 		return uniformMap[str];
 	}
 	
-	public function create():Void {
-	}
+	public function create():Void { }
 	
 	public function destroy():Void {
 		GL.deleteShader(vert);

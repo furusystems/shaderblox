@@ -13,4 +13,7 @@ class UniformBase<T> {
 		this.location = index;
 		this.data = data;
 	}
+	public inline function set(data:T):T {
+		return this.data = data;
+	}
 }

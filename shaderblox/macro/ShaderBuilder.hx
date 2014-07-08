@@ -255,71 +255,65 @@ class ShaderBuilder
 			pos : Context.currentPos() 
 		};
 		fields.push(func);
+		
+		var func = {
+			name : "createProperties", 
+			doc : null, 
+			meta : [], 
+			access : [AOverride, APrivate], 
+			kind : FFun( { args:[], params:[], ret:null, expr:macro { super.createProperties(); }} ),
+			pos : Context.currentPos() 
+		};
+		fields.push(func);
 	}
 	
 	static function complete(allFields:Array<Field>) 
 	{
 		var constructorFound:Bool = false;
 		for (f in allFields) {
-			switch(f.name){
-				case "new":
-				constructorFound = true;
-				switch(f.kind) {
-					case FFun(func):
-						switch(func.expr.expr) {
-							case EBlock(exprs):
-								//Populate our variables
-								//Create an array of uniforms
-								
-								for (uni in uniformFields) {
-									var name:String = uni.fieldName;
-									exprs.push(
-										macro {
-											var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName}, $v { uni.index } ]);
-											Reflect.setField(this, $v { name }, instance);
-											uniforms.push(instance);
-										}
-									);
-								}
-								var stride:Int = 0;
-								for (att in attributeFields) {
-									var name:String = att.fieldName;
-									var numFloats:Int = att.numFloats;
-									stride += numFloats * 4;
-									exprs.push(
-										macro {
-											var instance = Type.createInstance( Type.resolveClass( $v { att.typeName } ), [$v { att.fieldName }, $v { att.index }, $v { numFloats } ]);
-											Reflect.setField(this, $v { name }, instance);
-											attributes.push(instance);
-										}
-									);
-								}
-								exprs.push(
-									macro {
-										aStride += $v { stride };
-										//Reflect.setField(this, "aStride", $v{stride});
+			switch(f.name) {
+				case "createProperties":
+					switch(f.kind) {
+						case FFun(func):
+							switch(func.expr.expr) {
+								case EBlock(exprs):
+									//Populate our variables
+									//Create an array of uniforms
+									
+									for (uni in uniformFields) {
+										var name:String = uni.fieldName;
+										exprs.push(
+											macro {
+												var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName}, $v { uni.index } ]);
+												Reflect.setField(this, $v { name }, instance);
+												uniforms.push(instance);
+											}
+										);
 									}
-								);
-							default:
-						}
-					default:
-				}
+									var stride:Int = 0;
+									for (att in attributeFields) {
+										var name:String = att.fieldName;
+										var numFloats:Int = att.numFloats;
+										stride += numFloats * 4;
+										exprs.push(
+											macro {
+												var instance = Type.createInstance( Type.resolveClass( $v { att.typeName } ), [$v { att.fieldName }, $v { att.index }, $v { numFloats } ]);
+												Reflect.setField(this, $v { name }, instance);
+												attributes.push(instance);
+											}
+										);
+									}
+									exprs.push(
+										macro {
+											aStride += $v { stride };
+											//Reflect.setField(this, "aStride", $v{stride});
+										}
+									);
+								default:
+							}
+						default:
+					}
 			}
-		}
-		
-		
-		if (!constructorFound) {
-			var superCall = macro super();
-			var constructor = {
-				name : "new", 
-				doc : null, 
-				meta : [], 
-				access : [APublic], 
-				kind : FFun({args:[], params:[], ret:null, expr:{expr:EBlock([superCall]), pos:Context.currentPos()}}),
-				pos : Context.currentPos() 
-			};
-			allFields.push(constructor);
-			return complete(allFields);
 		}
 		
 		uniformFields = null;
