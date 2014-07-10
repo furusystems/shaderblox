@@ -59,7 +59,8 @@ class ShaderBase
 		GL.compileShader (vertexShader);
 		
 		if (GL.getShaderParameter (vertexShader, GL.COMPILE_STATUS) == 0) {
-			trace("Error compiling vertex shader: "+GL.getShaderInfoLog(vertexShader));
+			trace("Error compiling vertex shader: " + GL.getShaderInfoLog(vertexShader));
+			trace("\n"+vertSource);
 			throw "Error compiling vertex shader";
 			
 		}
@@ -70,6 +71,7 @@ class ShaderBase
 		
 		if (GL.getShaderParameter (fragmentShader, GL.COMPILE_STATUS) == 0) {
 			trace("Error compiling fragment shader: "+GL.getShaderInfoLog(fragmentShader));
+			trace("\n"+fragSource);
 			throw "Error compiling fragment shader";
 			
 		}
@@ -151,9 +153,10 @@ class ShaderBase
 		var offset:Int = 0;
 		for (i in 0...attributes.length) {
 			var location = attributes[i].location;
-			if (location == -1) continue;
-			GL.enableVertexAttribArray(location);
-			GL.vertexAttribPointer (location, attributes[i].numFloats, GL.FLOAT, false, aStride, offset);
+			if (location != -1){
+				GL.enableVertexAttribArray(location);
+				GL.vertexAttribPointer (location, attributes[i].numFloats, GL.FLOAT, false, aStride, offset);
+			}
 			offset += attributes[i].byteSize;
 		}
 	}

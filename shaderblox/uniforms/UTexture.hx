@@ -14,8 +14,12 @@ class UTexture extends UniformBase<GLTexture> implements IAppliable  {
 	public inline function apply():Void {
 		if (data == null) return;
 		GL.uniform1i(location, samplerIndex);
-		GL.activeTexture(GL.TEXTURE0 + samplerIndex);
-		GL.enable(GL.TEXTURE_2D);
+		var idx = GL.TEXTURE0 + samplerIndex;
+		//if (RenderState.ACTIVE_TEXTURE_UNIT != idx) {
+			GL.activeTexture(idx);
+			GL.enable(GL.TEXTURE_2D);
+		//}
+		//RenderState.ACTIVE_TEXTURE_UNIT = idx;
 		GL.bindTexture(GL.TEXTURE_2D, data);
 	}
 }

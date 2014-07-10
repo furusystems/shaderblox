@@ -4,7 +4,7 @@ package shaderblox.uniforms;
  * Generic uniform type
  * @author Andreas Rønning
  */
-class UniformBase<T> {
+@:generic @:remove class UniformBase<T> {
 	public var name:String;
 	public var location:Int;
 	public var data:T;

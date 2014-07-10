@@ -3,6 +3,7 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Expr.Field;
 import haxe.macro.Type.ClassType;
+import haxe.macro.Type.Ref;
 import haxe.rtti.Meta;
 using Lambda;
 
@@ -75,7 +76,7 @@ class ShaderBuilder
 				#if debug
 				trace("\tIncluding: " + t2.name);
 				#end
-				sources.push(getSources(t2));
+				sources.unshift(getSources(t2));
 			}
 		}
 		sources.push(getSources(Context.getLocalClass().get()));
@@ -120,17 +121,31 @@ class ShaderBuilder
 			}
 		}
 	}
+	
+	static function checkIfFieldDefined(name:String):Bool {
+		var type:ClassType = Context.getLocalClass().get();
+		while (type != null) {
+			for (fld in type.fields.get()) {
+				if (fld.name == name) {
+					return true;
+				}
+			}
+			if (type.superClass != null) {
+				type = type.superClass.t.get();
+			}else {
+				type = null;
+			}
+		}
+		return false;
+	}
+	
 	static function buildAttribute(position, fields, source:String) {
 		source = StringTools.trim(source);
 		var args = source.split(" ").slice(1);
 		var name = StringTools.trim(args[1].split(";").join(""));
 		
-		var superClass = Context.getLocalClass().get().superClass.t.get();
-		for (fld in superClass.fields.get()) {
-			if (fld.name == name) {
-				return;
-			}
-		}
+		//Avoid field redefinitions
+		if (checkIfFieldDefined(name)) return;
 		
 		for (existing in attributeFields) {
 			if (existing.fieldName == name) return; 
@@ -167,12 +182,7 @@ class ShaderBuilder
 		var args = source.split(" ").slice(1);
 		var name = StringTools.trim(args[1].split(";").join(""));
 		
-		var superClass = Context.getLocalClass().get().superClass.t.get();
-		for (fld in superClass.fields.get()) {
-			if (fld.name == name) {
-				return;
-			}
-		}
+		if (checkIfFieldDefined(name)) return;
 		
 		for (existing in uniformFields) {
 			if (existing.fieldName == name) return; 
