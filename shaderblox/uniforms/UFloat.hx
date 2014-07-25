@@ -1,5 +1,9 @@
 package shaderblox.uniforms;
+#if snow
+import snow.render.opengl.GL;
+#elseif lime
 import lime.gl.GL;
+#end
 
 /**
  * Float uniform
@@ -10,6 +14,6 @@ class UFloat extends UniformBase<Float> implements IAppliable  {
 		super(name, index, f);
 	}
 	public inline function apply():Void {
-		GL.uniform1f(location, data);
+		if(location!=-1) GL.uniform1f(location, data);
 	}
 }

@@ -1,6 +1,11 @@
 package shaderblox.uniforms;
-import lime.gl.GL;
+#if lime
 import lime.utils.Matrix3D;
+import lime.gl.GL;
+#elseif snow
+import falconer.utils.Matrix3D;
+import snow.render.opengl.GL;
+#end
 
 /**
  * Transposed Matrix3D uniform
@@ -12,6 +17,6 @@ class UMatrixTransposed extends UniformBase<Matrix3D> implements IAppliable {
 		super(index, m);
 	}
 	public inline function apply():Void {
-		GL.uniformMatrix3D(location, true, data);
+		if(location!=-1) GL.uniformMatrix3D(location, true, data);
 	}
 }

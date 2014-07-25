@@ -12,7 +12,7 @@ using Lambda;
  * @author Andreas Rønning
  */
 private typedef FieldDef = {index:Int, typeName:String, fieldName:String };
-private typedef AttribDef = {index:Int, typeName:String, fieldName:String, numFloats:Int };
+private typedef AttribDef = {index:Int, typeName:String, fieldName:String, itemCount:Int };
 class ShaderBuilder
 {
 	#if macro
@@ -22,6 +22,8 @@ class ShaderBuilder
 	static var vertSource:String;
 	static var fragSource:String;
 	static var asTemplate:Bool;
+	static inline var GL_FLOAT:Int = 0x1406;
+	static inline var GL_INT:Int = 0x1404;
 
 	static function getSources(type:ClassType):Array<String> {
 		var meta = type.meta.get();
@@ -139,7 +141,7 @@ class ShaderBuilder
 		return false;
 	}
 	
-	static function buildAttribute(position, fields, source:String) {
+	static function buildAttribute(position, fields, source:String):Void {
 		source = StringTools.trim(source);
 		var args = source.split(" ").slice(1);
 		var name = StringTools.trim(args[1].split(";").join(""));
@@ -151,20 +153,31 @@ class ShaderBuilder
 			if (existing.fieldName == name) return; 
 		}
 		var pack = ["shaderblox", "attributes"];
-		var type = { pack : pack, name : "FloatAttribute", params : [], sub : null };
-		var numFloats:Int = 0;
+		var itemCount:Int = 0;
+		var itemType:Int = -1;
 		switch(args[0]) {
 			case "float":
-				numFloats = 1;
+				itemCount = 1;
+				itemType = GL_FLOAT;
 			case "vec2":
-				numFloats = 2;
+				itemCount = 2;
+				itemType = GL_FLOAT;
 			case "vec3":
-				numFloats = 3;
+				itemCount = 3;
+				itemType = GL_FLOAT;
 			case "vec4":
-				numFloats = 4;
+				itemCount = 4;
+				itemType = GL_FLOAT;
 			default:
 				throw "Unknown attribute type: " + args[0];
 		}
+		var attribClassName:String = switch(itemType) {
+			case GL_FLOAT:
+				"FloatAttribute";
+			default:
+				throw "Unknown attribute type: " + itemType;
+		}
+		var type = { pack : pack, name : attribClassName, params : [], sub : null };
 		var fld = {
 				name : name, 
 				doc : null, 
@@ -174,7 +187,7 @@ class ShaderBuilder
 				pos : position 
 			};
 		fields.push(fld);
-		var f = { index:attributeFields.length, fieldName:name, typeName:pack.join(".") + ".FloatAttribute", numFloats:numFloats };
+		var f = { index:attributeFields.length, fieldName:name, typeName:pack.join(".") + "." + attribClassName, itemCount:itemCount };
 		attributeFields.push(f);
 	}
 	static function buildUniform(position, fields, source:String) {
@@ -303,11 +316,11 @@ class ShaderBuilder
 									var stride:Int = 0;
 									for (att in attributeFields) {
 										var name:String = att.fieldName;
-										var numFloats:Int = att.numFloats;
-										stride += numFloats * 4;
+										var numItems:Int = att.itemCount;
+										stride += numItems * 4;
 										exprs.push(
 											macro {
-												var instance = Type.createInstance( Type.resolveClass( $v { att.typeName } ), [$v { att.fieldName }, $v { att.index }, $v { numFloats } ]);
+												var instance = Type.createInstance( Type.resolveClass( $v { att.typeName } ), [$v { att.fieldName }, $v { att.index }, $v { numItems } ]);
 												Reflect.setField(this, $v { name }, instance);
 												attributes.push(instance);
 											}

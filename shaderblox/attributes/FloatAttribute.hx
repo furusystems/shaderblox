@@ -1,4 +1,9 @@
 package shaderblox.attributes;
+#if snow
+import snow.render.opengl.GL;
+#elseif lime
+import lime.gl.GL;
+#end
 
 /**
  * 4-byte float vertex attribute occupying a variable number of floats
@@ -6,17 +11,17 @@ package shaderblox.attributes;
  */
 class FloatAttribute extends Attribute
 {
-	public var numFloats:Int;
 	public function new(name:String, location:Int, nFloats:Int = 1) 
 	{
 		this.name = name;
 		this.location = location;
 		byteSize = nFloats * 4;
-		numFloats = nFloats;
+		itemCount = nFloats;
+		type = GL.FLOAT;
 	}
 	public function toString():String 
 	{
-		return "[FloatAttribute numFloats=" + numFloats + " byteSize=" + byteSize + " location=" + location + " name=" + name + "]";
+		return "[FloatAttribute itemCount=" + itemCount + " byteSize=" + byteSize + " location=" + location + " name=" + name + "]";
 	}
 	
 }

@@ -6,6 +6,5 @@
   "description": "GLSL tools for Haxe/Lime",
   "version": "1.0.0",
   "releasenote": "",
-  "contributors": ["decept404"],
-  "dependencies": { "lime":"" }
+  "contributors": ["decept404"]
 }

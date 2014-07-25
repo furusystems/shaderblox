@@ -1,8 +1,12 @@
 package shaderblox;
+#if snow
+import snow.render.opengl.GL;
+#elseif lime
 import lime.gl.GL;
 import lime.gl.GLProgram;
 import lime.gl.GLShader;
-import shaderblox.attributes.FloatAttribute;
+#end
+import shaderblox.attributes.Attribute;
 import shaderblox.uniforms.IAppliable;
 import shaderblox.uniforms.UTexture;
 
@@ -18,8 +22,7 @@ class ShaderBase
 {	
 	public var active:Bool;
 	var uniforms:Array<IAppliable>;
-	var uniformMap:Map<String, IAppliable>;
-	var attributes:Array<FloatAttribute>;
+	var attributes:Array<Attribute>;
 	var aStride:Int;
 	var name:String;
 	var vert:GLShader;
@@ -30,7 +33,6 @@ class ShaderBase
 	
 	private function new() {
 		uniforms = [];
-		uniformMap = new Map<String,IAppliable>();
 		attributes = [];
 		name = ("" + Type.getClass(this)).split(".").pop();
 		createProperties();
@@ -39,16 +41,16 @@ class ShaderBase
 	private function createProperties():Void { }
 	
 	
-	public inline function getUniformByName(str:String):IAppliable {
-		return uniformMap[str];
-	}
-	
 	public function create():Void { }
 	
 	public function destroy():Void {
+		trace("Destroying " + this);
 		GL.deleteShader(vert);
 		GL.deleteShader(frag);
 		GL.deleteProgram(prog);
+		prog = null;
+		vert = null;
+		frag = null;
 		ready = false;
 	}
 	
@@ -105,13 +107,18 @@ class ShaderBase
 		prog = shaderProgram;
 		
 		//Validate uniform locations
-		for (u in uniforms) {
-			uniformMap[u.name] = u;
+		var count = uniforms.length;
+		while (count-- > 0) {
+			var u = uniforms[count];
 			var loc = uniformLocations.get(u.name);
-			u.location = loc == null? -1:loc;
-			if (u.location == -1) trace("WARNING(" + name + "): unused uniform '" + u.name +"'");
-			if (Std.is(u, UTexture) && u.location != -1) {
-				cast(u, UTexture).samplerIndex = numTextures++;
+			if (loc != null) {				
+				u.location = loc;
+				if (Std.is(u, UTexture)) {
+					cast(u, UTexture).samplerIndex = numTextures++;
+				}
+			}else {
+				uniforms.remove(u);
+				trace("WARNING(" + name + "): unused uniform '" + u.name +"'");
 			}
 			#if (debug && !display) trace("Defined uniform "+u.name+" at "+u.location); #end
 		}
@@ -126,7 +133,11 @@ class ShaderBase
 	}
 	
 	public function activate(initUniforms:Bool = true, initAttribs:Bool = false):Void {
-		if (active) return;
+		if (active) {
+			if (initUniforms) setUniforms();
+			if (initAttribs) setAttributes();
+			return;
+		}
 		if (!ready) create();
 		GL.useProgram(prog);
 		if (initUniforms) setUniforms();
@@ -141,10 +152,9 @@ class ShaderBase
 		GL.useProgram(null);
 	}
 	
-	public inline function setUniforms() 
+	public function setUniforms() 
 	{
 		for (u in uniforms) {
-			if (u.location == -1) continue;
 			u.apply();
 		}
 	}
@@ -152,15 +162,16 @@ class ShaderBase
 	{
 		var offset:Int = 0;
 		for (i in 0...attributes.length) {
-			var location = attributes[i].location;
-			if (location != -1){
+			var att = attributes[i];
+			var location = att.location;
+			if (location != -1) {
 				GL.enableVertexAttribArray(location);
-				GL.vertexAttribPointer (location, attributes[i].numFloats, GL.FLOAT, false, aStride, offset);
+				GL.vertexAttribPointer (location, att.itemCount, att.type, false, aStride, offset);
 			}
-			offset += attributes[i].byteSize;
+			offset += att.byteSize;
 		}
 	}
-	inline function disableAttributes() 
+	function disableAttributes() 
 	{
 		for (i in 0...attributes.length) {
 			var idx = attributes[i].location;

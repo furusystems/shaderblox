@@ -1,6 +1,11 @@
 package shaderblox.uniforms;
+#if lime
 import lime.gl.GL;
 import lime.utils.Vector3D;
+#elseif snow
+import snow.render.opengl.GL;
+import falconer.utils.Vector3D;
+#end
 
 /**
  * Vector4 float uniform
@@ -11,6 +16,6 @@ class UVec4 extends UniformBase<Vector3D> implements IAppliable  {
 		super(name, index, new Vector3D(x, y, z, w));
 	}
 	public inline function apply():Void {
-		GL.uniform4f(location, data.x, data.y, data.z, data.w);
+		if(location!=-1) GL.uniform4f(location, data.x, data.y, data.z, data.w);
 	}
 }

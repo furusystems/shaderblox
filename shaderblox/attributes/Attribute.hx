@@ -7,7 +7,9 @@ package shaderblox.attributes;
 class Attribute
 {
 	public var byteSize:Int;
+	public var itemCount:Int;
 	public var location:Int;
 	public var name:String;
+	public var type:Int;
 	
 }

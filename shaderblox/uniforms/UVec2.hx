@@ -1,5 +1,9 @@
 package shaderblox.uniforms;
+#if snow
+import snow.render.opengl.GL;
+#elseif lime
 import lime.gl.GL;
+#end
 
 /**
  * Vector2 float uniform
@@ -22,6 +26,6 @@ class UVec2 extends UniformBase<Pt> implements IAppliable  {
 		super(name, index, p);
 	}
 	public inline function apply():Void {
-		GL.uniform2f(location, data.x, data.y);
+		if(location!=-1) GL.uniform2f(location, data.x, data.y);
 	}
 }
