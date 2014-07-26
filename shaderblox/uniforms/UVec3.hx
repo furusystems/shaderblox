@@ -16,6 +16,9 @@ class UVec3 extends UniformBase<Vector3D> implements IAppliable {
 		super(name, index, new Vector3D(x, y, z));
 	}
 	public inline function apply():Void {
-		if(location!=-1) GL.uniform3f(location, data.x, data.y, data.z);
+		if (location != -1) {
+			GL.uniform3f(location, data.x, data.y, data.z);
+			dirty = false;
+		}
 	}
 }

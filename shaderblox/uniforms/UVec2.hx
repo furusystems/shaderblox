@@ -26,6 +26,9 @@ class UVec2 extends UniformBase<Pt> implements IAppliable  {
 		super(name, index, p);
 	}
 	public inline function apply():Void {
-		if(location!=-1) GL.uniform2f(location, data.x, data.y);
+		if (location != -1) {
+			GL.uniform2f(location, data.x, data.y);
+			dirty = false;
+		}
 	}
 }

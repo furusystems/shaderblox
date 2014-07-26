@@ -17,6 +17,9 @@ class UMatrixTransposed extends UniformBase<Matrix3D> implements IAppliable {
 		super(index, m);
 	}
 	public inline function apply():Void {
-		if(location!=-1) GL.uniformMatrix3D(location, true, data);
+		if (location != -1) {
+			GL.uniformMatrix3D(location, true, data);
+			dirty = false;
+		}
 	}
 }

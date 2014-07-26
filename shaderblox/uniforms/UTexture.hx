@@ -25,5 +25,6 @@ class UTexture extends UniformBase<GLTexture> implements IAppliable  {
 			GL.enable(GL.TEXTURE_2D);
 		}
 		GL.bindTexture(GL.TEXTURE_2D, data);
+		dirty = false;
 	}
 }

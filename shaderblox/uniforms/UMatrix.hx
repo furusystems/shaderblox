@@ -21,10 +21,14 @@ class UMatrix extends UniformBase<Matrix3D> implements IAppliable {
 	}
 	public inline function apply():Void {
 		#if lime
-		if (location != -1) GL.uniformMatrix3D(location, false, data);
+		if (location != -1) {
+			GL.uniformMatrix3D(location, false, data);
+			dirty = false;
+		}
 		#elseif snow
 		if (location != -1) {
 			GL.uniformMatrix4fv(location, false, new Float32Array(data.rawData));
+			dirty = false;
 		}
 		#end
 	}
