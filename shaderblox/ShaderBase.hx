@@ -23,6 +23,7 @@ class ShaderBase
 	public var active:Bool;
 	var uniforms:Array<IAppliable>;
 	var attributes:Array<Attribute>;
+	public var textures:Array<UTexture>;
 	var aStride:Int;
 	var name:String;
 	var vert:GLShader;
@@ -32,6 +33,7 @@ class ShaderBase
 	var numTextures:Int;
 	
 	private function new() {
+		textures = [];
 		uniforms = [];
 		attributes = [];
 		name = ("" + Type.getClass(this)).split(".").pop();
@@ -56,7 +58,6 @@ class ShaderBase
 	
 	function initFromSource(vertSource:String, fragSource:String) {
 		var vertexShader = GL.createShader (GL.VERTEX_SHADER);
-		numTextures = 0;
 		GL.shaderSource (vertexShader, vertSource);
 		GL.compileShader (vertexShader);
 		
@@ -72,8 +73,12 @@ class ShaderBase
 		GL.compileShader (fragmentShader);
 		
 		if (GL.getShaderParameter (fragmentShader, GL.COMPILE_STATUS) == 0) {
-			trace("Error compiling fragment shader: "+GL.getShaderInfoLog(fragmentShader));
-			trace("\n"+fragSource);
+			trace("Error compiling fragment shader: " + GL.getShaderInfoLog(fragmentShader)+"\n");
+			var lines = fragSource.split("\n");
+			var i = 0;
+			for (l in lines) {
+				trace((i++) + " - " + l);
+			}
 			throw "Error compiling fragment shader";
 			
 		}
@@ -108,20 +113,34 @@ class ShaderBase
 		
 		//Validate uniform locations
 		var count = uniforms.length;
-		while (count-- > 0) {
-			var u = uniforms[count];
+		var removeList:Array<IAppliable> = [];
+		numTextures = 0;
+		textures = [];
+		for (u in uniforms) {
 			var loc = uniformLocations.get(u.name);
+			if (Std.is(u, UTexture)) {
+				var t:UTexture = cast u;
+				t.samplerIndex = numTextures++;
+				textures[t.samplerIndex] = t;
+			}
 			if (loc != null) {				
 				u.location = loc;
-				if (Std.is(u, UTexture)) {
-					cast(u, UTexture).samplerIndex = numTextures++;
-				}
+				#if (debug && !display) trace("Defined uniform "+u.name+" at "+u.location); #end
 			}else {
-				uniforms.remove(u);
+				removeList.push(u);
 				trace("WARNING(" + name + "): unused uniform '" + u.name +"'");
 			}
-			#if (debug && !display) trace("Defined uniform "+u.name+" at "+u.location); #end
 		}
+		while (removeList.length > 0) {
+			uniforms.remove(removeList.pop());
+		}
+		//TODO: Graceful handling of unused sampler uniforms.
+		/**
+		 * 1. Find every sampler/samplerCube uniform
+		 * 2. For each sampler, assign a sampler index from 0 and up
+		 * 3. Go through uniform locations, remove inactive samplers
+		 * 4. Pack remaining active sampler
+		 */
 		
 		//Validate attribute locations
 		for (a in attributes) {

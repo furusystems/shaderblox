@@ -11,7 +11,7 @@ using Lambda;
  * ...
  * @author Andreas Rønning
  */
-private typedef FieldDef = {index:Int, typeName:String, fieldName:String };
+private typedef FieldDef = {index:Int, typeName:String, fieldName:String, extrainfo:Dynamic };
 private typedef AttribDef = {index:Int, typeName:String, fieldName:String, itemCount:Int };
 class ShaderBuilder
 {
@@ -202,9 +202,14 @@ class ShaderBuilder
 		}
 		var pack = ["shaderblox", "uniforms"];
 		var type = { pack : pack, name : "UMatrix", params : [], sub : null };
+		var extrainfo:Dynamic = null;
 		switch(args[0]) {
+			case "samplerCube":
+				type.name = "UTexture";
+				extrainfo = true;
 			case "sampler2D":
 				type.name = "UTexture";
+				extrainfo = false;
 			case "mat4":
 				type.name = "UMatrix";
 			case "float":
@@ -228,7 +233,7 @@ class ShaderBuilder
 			};
 		fields.push(f);
 		uniformFields.push( 
-			{index:-1, fieldName:f.name, typeName:pack.join(".") + "." + type.name } 
+			{index:-1, fieldName:f.name, typeName:pack.join(".") + "." + type.name, extrainfo:extrainfo } 
 		);
 	}
 	
@@ -305,13 +310,23 @@ class ShaderBuilder
 									
 									for (uni in uniformFields) {
 										var name:String = uni.fieldName;
-										exprs.push(
-											macro {
-												var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName}, $v { uni.index } ]);
-												Reflect.setField(this, $v { name }, instance);
-												uniforms.push(instance);
-											}
-										);
+										if (uni.typeName.split(".").pop() == "UTexture"){
+											exprs.push(
+												macro {
+													var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName }, $v { uni.index }, $v { uni.extrainfo } ]);
+													Reflect.setField(this, $v { name }, instance);
+													uniforms.push(instance);
+												}
+											);
+										}else {
+											exprs.push(
+												macro {
+													var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName}, $v { uni.index } ]);
+													Reflect.setField(this, $v { name }, instance);
+													uniforms.push(instance);
+												}
+											);
+										}
 									}
 									var stride:Int = 0;
 									for (att in attributeFields) {

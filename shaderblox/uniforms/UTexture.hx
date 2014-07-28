@@ -13,18 +13,21 @@ import lime.gl.GLTexture;
 class UTexture extends UniformBase<GLTexture> implements IAppliable  {
 	public var samplerIndex:Int;
 	static var lastActiveTexture:Int = -1;
-	public function new(name:String, index:Int) {
+	var cube:Bool;
+	public var type:Int;
+	public function new(name:String, index:Int, cube:Bool = false) {
+		this.cube = cube;
+		type = cube?GL.TEXTURE_CUBE_MAP:GL.TEXTURE_2D;
 		super(name, index, null);
 	}
 	public inline function apply():Void {
 		if (data == null || location==-1 ) return;
-		GL.uniform1i(location, samplerIndex);
 		var idx = GL.TEXTURE0 + samplerIndex;
 		if (lastActiveTexture != idx) {
 			GL.activeTexture(lastActiveTexture = idx);
-			GL.enable(GL.TEXTURE_2D);
 		}
-		GL.bindTexture(GL.TEXTURE_2D, data);
+		GL.uniform1i(location, samplerIndex);
+		GL.bindTexture(type, data);
 		dirty = false;
 	}
 }
