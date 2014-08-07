@@ -14,10 +14,6 @@ import shaderblox.ShaderBase;
 ')
 
 @:frag('
-	#ifdef GL_ES
-	precision mediump float;
-	#endif
-	
 	uniform vec3 uColor;
 	void main(void)
 	{
