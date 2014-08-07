@@ -11,7 +11,7 @@ using Lambda;
  * ...
  * @author Andreas Rønning
  */
-private typedef FieldDef = {index:Int, typeName:String, fieldName:String, extrainfo:Dynamic };
+private typedef FieldDef = {index:Null<Int>, typeName:String, fieldName:String, extrainfo:Dynamic };
 private typedef AttribDef = {index:Int, typeName:String, fieldName:String, itemCount:Int };
 class ShaderBuilder
 {
@@ -233,7 +233,7 @@ class ShaderBuilder
 			};
 		fields.push(f);
 		uniformFields.push( 
-			{index:-1, fieldName:f.name, typeName:pack.join(".") + "." + type.name, extrainfo:extrainfo } 
+			{index:#if !js -1 #else null #end, fieldName:f.name, typeName:pack.join(".") + "." + type.name, extrainfo:extrainfo } 
 		);
 	}
 	

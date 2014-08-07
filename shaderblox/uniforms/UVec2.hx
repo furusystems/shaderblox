@@ -2,7 +2,9 @@ package shaderblox.uniforms;
 #if snow
 import snow.render.opengl.GL;
 #elseif lime
-import lime.gl.GL;
+import lime.graphics.opengl.GL;
+
+using shaderblox.helpers.GLUniformLocationHelper;
 #end
 
 /**
@@ -26,7 +28,7 @@ class UVec2 extends UniformBase<Pt> implements IAppliable  {
 		super(name, index, p);
 	}
 	public inline function apply():Void {
-		if (location != -1) {
+		if (location.isValid()) {
 			GL.uniform2f(location, data.x, data.y);
 			dirty = false;
 		}

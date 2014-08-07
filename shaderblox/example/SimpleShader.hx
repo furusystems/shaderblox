@@ -12,7 +12,12 @@ import shaderblox.ShaderBase;
 		gl_Position = vec4(aVertexPosition,0.0,1.0);
 	}
 ')
+
 @:frag('
+	#ifdef GL_ES
+	precision mediump float;
+	#endif
+	
 	uniform vec3 uColor;
 	void main(void)
 	{

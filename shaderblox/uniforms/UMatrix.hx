@@ -4,8 +4,11 @@ import snow.utils.Float32Array;
 import falconer.utils.Matrix3D;
 import snow.render.opengl.GL;
 #elseif lime
-import lime.gl.GL;
+import lime.graphics.opengl.GL;
 import lime.utils.Matrix3D;
+import lime.graphics.opengl.GLUniformLocation;
+
+using shaderblox.helpers.GLUniformLocationHelper;
 #else
 throw "Requires lime or snow";
 #end
@@ -15,13 +18,13 @@ throw "Requires lime or snow";
  * @author Andreas Rønning
  */
 class UMatrix extends UniformBase<Matrix3D> implements IAppliable {
-	public function new(name:String, index:Int, ?m:Matrix3D) {
+	public function new(name:String, index:GLUniformLocation, ?m:Matrix3D) {
 		if (m == null) m = new Matrix3D();
 		super(name, index, m);
 	}
 	public inline function apply():Void {
 		#if lime
-		if (location != -1) {
+		if (location.isValid()) {
 			GL.uniformMatrix3D(location, false, data);
 			dirty = false;
 		}

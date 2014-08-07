@@ -2,9 +2,10 @@ package shaderblox;
 #if snow
 import snow.render.opengl.GL;
 #elseif lime
-import lime.gl.GL;
-import lime.gl.GLProgram;
-import lime.gl.GLShader;
+import lime.graphics.opengl.GL;
+import lime.graphics.opengl.GLProgram;
+import lime.graphics.opengl.GLShader;
+import lime.graphics.opengl.GLUniformLocation;
 #end
 import shaderblox.attributes.Attribute;
 import shaderblox.uniforms.IAppliable;
@@ -32,7 +33,7 @@ class ShaderBase
 	var ready:Bool;
 	var numTextures:Int;
 	
-	private function new() {
+	public function new() {
 		textures = [];
 		uniforms = [];
 		attributes = [];
@@ -93,10 +94,10 @@ class ShaderBase
 		}
 		
 		var numUniforms = GL.getProgramParameter(shaderProgram, GL.ACTIVE_UNIFORMS);
-		var uniformLocations:Map<String,Int> = new Map<String, Int>();
+		var uniformLocations:Map<String,GLUniformLocation> = new Map<String, GLUniformLocation>();
 		while (numUniforms-->0) {
 			var uInfo = GL.getActiveUniform(shaderProgram, numUniforms);
-			var loc:Int = cast GL.getUniformLocation(shaderProgram, uInfo.name);
+			var loc = GL.getUniformLocation(shaderProgram, uInfo.name);
 			uniformLocations[uInfo.name] = loc;
 		}
 		var numAttributes = GL.getProgramParameter(shaderProgram, GL.ACTIVE_ATTRIBUTES);
