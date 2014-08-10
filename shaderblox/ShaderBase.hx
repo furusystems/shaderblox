@@ -22,7 +22,6 @@ import shaderblox.uniforms.UTexture;
 class ShaderBase
 {	
 	public var active:Bool;
-	public var floatPrecision(default, null):String = "";
 	var uniforms:Array<IAppliable>;
 	var attributes:Array<Attribute>;
 	public var textures:Array<UTexture>;
@@ -34,8 +33,7 @@ class ShaderBase
 	var ready:Bool;
 	var numTextures:Int;
 	
-	public function new(?floatPrecision:String) {
-		this.floatPrecision = (floatPrecision!=null) ? floatPrecision : "";
+	public function new() {
 		textures = [];
 		uniforms = [];
 		attributes = [];
@@ -70,12 +68,10 @@ class ShaderBase
 			
 		}
 		
-		if(floatPrecision != "lowp" || floatPrecision != "highp")
-			floatPrecision = "mediump";
-		var precisionPrepend = "#ifdef GL_ES\nprecision "+floatPrecision+" float;\n#endif\n";
-		
+		var defaultFloatPrecision = "#ifdef GL_ES\nprecision mediump float;\n#endif\n";
+
 		var fragmentShader = GL.createShader (GL.FRAGMENT_SHADER);
-		GL.shaderSource (fragmentShader, precisionPrepend+fragSource);
+		GL.shaderSource (fragmentShader, defaultFloatPrecision+fragSource);
 		GL.compileShader (fragmentShader);
 		
 		if (GL.getShaderParameter (fragmentShader, GL.COMPILE_STATUS) == 0) {
