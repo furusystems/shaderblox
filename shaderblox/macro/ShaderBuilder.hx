@@ -13,6 +13,7 @@ using Lambda;
  */
 private typedef FieldDef = {index:Null<Int>, typeName:String, fieldName:String, extrainfo:Dynamic };
 private typedef AttribDef = {index:Int, typeName:String, fieldName:String, itemCount:Int };
+private typedef GLSLGlobal = {storageQualifier:String, ?precision:String, type:String, name:String, ?arraySize:Int};
 class ShaderBuilder
 {
 	#if macro
@@ -90,16 +91,14 @@ class ShaderBuilder
 		
 		if(vertSource!=""){
 			vertSource = pragmas(unifyLineEndings(vertSource));
-			var lines:Array<String> = vertSource.split("\n");
-			buildUniforms(position, newFields, lines);
-			buildAttributes(position, newFields, lines);
+			buildUniforms(position, newFields, vertSource);
+			buildAttributes(position, newFields, vertSource);
 		}else {
 			throw "No vert source";
 		}
 		if(fragSource!=""){
 			fragSource = pragmas(unifyLineEndings(fragSource));
-			var lines:Array<String> = fragSource.split("\n");
-			buildUniforms(position, newFields, lines);
+			buildUniforms(position, newFields, fragSource);
 		}else {
 			throw "No frag source";
 		}
@@ -109,19 +108,55 @@ class ShaderBuilder
 		return complete(newFields.concat(fields));
 	}
 	
-	static function buildAttributes(position, fields:Array<Field>, lines:Array<String>) {
-		for (l in lines) {
-			if (l.indexOf("attribute") > -1) {
-				buildAttribute(position, fields, l);
-			}
-		}
+	static function buildAttributes(position, fields:Array<Field>, src:String) {
+		var attributeTypes = ['float','vec2','vec3','vec4','mat2','mat3','mat4'];
+		var attributes = extractGLSLGlobals(src, 'attribute', attributeTypes);
+		for(a in attributes)
+			buildAttribute(position, fields, a);
 	}
-	static function buildUniforms(position, fields:Array<Field>, lines:Array<String>) {
-		for (l in lines) {
-			if (l.indexOf("uniform") > -1) {
-				buildUniform(position, fields, l);
-			}
-		}
+
+
+	static function buildUniforms(position, fields:Array<Field>, src:String) {
+		var uniformTypes = ['bool','int','float','vec2','vec3','vec4','bvec2','bvec3','bvec4','ivec2','ivec3','ivec4','mat2','mat3','mat4','sampler2D','samplerCube'];
+		var uniforms = extractGLSLGlobals(src, 'uniform', uniformTypes);
+		for(u in uniforms)
+			buildUniform(position, fields, u);
+	}
+
+	static function extractGLSLGlobals(src:String, storageQualifier:String, types:Array<String>){
+		var str = stripComments(src);
+
+		var precisionQualifiers = ['lowp', 'mediump', 'highp'];
+
+		var reg = new EReg(storageQualifier+'\\s+(('+precisionQualifiers.join('|')+')\\s+)?('+types.join('|')+')\\s+([^;]+)', 'gm');//we must double escape characters in this format
+
+		var globals = new Array<GLSLGlobal>();
+
+		while(reg.match(str)){
+	        var precision = reg.matched(2);
+	        var type = reg.matched(3);
+	        var rawNamesStr = reg.matched(4);
+
+	        //Extract comma separated names and array sizes (ie name[size])
+	        var rName = ~/^\s*([\w\d_]+)(\[(\d*)\])?\s*$/igm;
+	        for(rawName in rawNamesStr.split(',')){
+				if(!rName.match(rawName)) continue;//name does not conform
+
+	           	var global = {
+	           		storageQualifier: storageQualifier,
+	           		precision: precision,
+	           		type: type,
+	           		name: rName.matched(1),
+	           		arraySize: Std.parseInt(rName.matched(3))
+	           	};
+
+	            globals.push(global);
+	        }
+
+	        str = reg.matchedRight();
+	    }
+
+	    return globals;
 	}
 	
 	static function checkIfFieldDefined(name:String):Bool {
@@ -141,21 +176,17 @@ class ShaderBuilder
 		return false;
 	}
 	
-	static function buildAttribute(position, fields, source:String):Void {
-		source = StringTools.trim(source);
-		var args = source.split(" ").slice(1);
-		var name = StringTools.trim(args[1].split(";").join(""));
-		
+	static function buildAttribute(position, fields, attribute:GLSLGlobal):Void {
 		//Avoid field redefinitions
-		if (checkIfFieldDefined(name)) return;
+		if (checkIfFieldDefined(attribute.name)) return;
 		
 		for (existing in attributeFields) {
-			if (existing.fieldName == name) return; 
+			if (existing.fieldName == attribute.name) return; 
 		}
 		var pack = ["shaderblox", "attributes"];
 		var itemCount:Int = 0;
 		var itemType:Int = -1;
-		switch(args[0]) {
+		switch(attribute.type) {
 			case "float":
 				itemCount = 1;
 				itemType = GL_FLOAT;
@@ -169,7 +200,7 @@ class ShaderBuilder
 				itemCount = 4;
 				itemType = GL_FLOAT;
 			default:
-				throw "Unknown attribute type: " + args[0];
+				throw "Unknown attribute type: " + attribute.type;
 		}
 		var attribClassName:String = switch(itemType) {
 			case GL_FLOAT:
@@ -179,7 +210,7 @@ class ShaderBuilder
 		}
 		var type = { pack : pack, name : attribClassName, params : [], sub : null };
 		var fld = {
-				name : name, 
+				name : attribute.name, 
 				doc : null, 
 				meta : [], 
 				access : [APublic], 
@@ -187,23 +218,20 @@ class ShaderBuilder
 				pos : position 
 			};
 		fields.push(fld);
-		var f = { index:attributeFields.length, fieldName:name, typeName:pack.join(".") + "." + attribClassName, itemCount:itemCount };
+		var f = { index:attributeFields.length, fieldName: fld.name, typeName:pack.join(".") + "." + attribClassName, itemCount:itemCount };
 		attributeFields.push(f);
 	}
-	static function buildUniform(position, fields, source:String) {
-		source = StringTools.trim(source);
-		var args = source.split(" ").slice(1);
-		var name = StringTools.trim(args[1].split(";").join(""));
-		
-		if (checkIfFieldDefined(name)) return;
+	static function buildUniform(position, fields, uniform:GLSLGlobal) {
+		if (checkIfFieldDefined(uniform.name)) return;
 		
 		for (existing in uniformFields) {
-			if (existing.fieldName == name) return; 
+			if (existing.fieldName == uniform.name) return; 
 		}
+
 		var pack = ["shaderblox", "uniforms"];
 		var type = { pack : pack, name : "UMatrix", params : [], sub : null };
 		var extrainfo:Dynamic = null;
-		switch(args[0]) {
+		switch(uniform.type) {
 			case "samplerCube":
 				type.name = "UTexture";
 				extrainfo = true;
@@ -221,10 +249,10 @@ class ShaderBuilder
 			case "vec4":
 				type.name = "UVec4";
 			default:
-				throw "Unknown uniform type: " + args[0];
+				throw "Unknown uniform type: " + uniform.type;
 		}
 		var f = {
-				name : name, 
+				name : uniform.name, 
 				doc : null, 
 				meta : [], 
 				access : [APublic], 
@@ -233,7 +261,7 @@ class ShaderBuilder
 			};
 		fields.push(f);
 		uniformFields.push( 
-			{index:#if !js -1 #else null #end, fieldName:f.name, typeName:pack.join(".") + "." + type.name, extrainfo:extrainfo } 
+			{index:#if !js -1 #else null #end, fieldName: f.name, typeName:pack.join(".") + "." + type.name, extrainfo:extrainfo } 
 		);
 	}
 	
@@ -266,6 +294,10 @@ class ShaderBuilder
 			}
 		}
 		return lines.join("\n");
+	}
+
+	static function stripComments(src:String):String {
+		return (~/(?:\/\*(?:[\s\S]*?)\*\/)|(?:\/\/(?:.*)$)/igm).replace(src, '');//#1 = block comments, #2 = line comments
 	}
 	
 	static function buildOverrides(fields:Array<Field>) 
