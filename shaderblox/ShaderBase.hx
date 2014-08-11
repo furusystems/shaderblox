@@ -6,6 +6,7 @@ import lime.graphics.opengl.GL;
 import lime.graphics.opengl.GLProgram;
 import lime.graphics.opengl.GLShader;
 import lime.graphics.opengl.GLUniformLocation;
+using shaderblox.helpers.GLUniformLocationHelper;
 #end
 import shaderblox.attributes.Attribute;
 import shaderblox.uniforms.IAppliable;
@@ -67,11 +68,9 @@ class ShaderBase
 			throw "Error compiling vertex shader";
 			
 		}
-		
-		var defaultFloatPrecision = "#ifdef GL_ES\nprecision mediump float;\n#endif\n";
 
 		var fragmentShader = GL.createShader (GL.FRAGMENT_SHADER);
-		GL.shaderSource (fragmentShader, defaultFloatPrecision+fragSource);
+		GL.shaderSource (fragmentShader, fragSource);
 		GL.compileShader (fragmentShader);
 		
 		if (GL.getShaderParameter (fragmentShader, GL.COMPILE_STATUS) == 0) {
@@ -82,7 +81,6 @@ class ShaderBase
 				trace((i++) + " - " + l);
 			}
 			throw "Error compiling fragment shader";
-			
 		}
 		
 		var shaderProgram = GL.createProgram ();
@@ -91,7 +89,7 @@ class ShaderBase
 		GL.linkProgram (shaderProgram);
 		
 		if (GL.getProgramParameter (shaderProgram, GL.LINK_STATUS) == 0) {
-			throw "Unable to initialize the shader program.";
+			throw "Unable to initialize the shader program.\n"+GL.getProgramInfoLog(shaderProgram);
 		}
 		
 		var numUniforms = GL.getProgramParameter(shaderProgram, GL.ACTIVE_UNIFORMS);
@@ -125,7 +123,7 @@ class ShaderBase
 				t.samplerIndex = numTextures++;
 				textures[t.samplerIndex] = t;
 			}
-			if (loc != null) {				
+			if (loc.isValid()) {				
 				u.location = loc;
 				#if (debug && !display) trace("Defined uniform "+u.name+" at "+u.location); #end
 			}else {
@@ -173,14 +171,12 @@ class ShaderBase
 		GL.useProgram(null);
 	}
 	
-	public function setUniforms() 
-	{
+	public inline function setUniforms() {
 		for (u in uniforms) {
 			u.apply();
 		}
 	}
-	public function setAttributes() 
-	{
+	public inline function setAttributes() {
 		var offset:Int = 0;
 		for (i in 0...attributes.length) {
 			var att = attributes[i];
@@ -192,8 +188,7 @@ class ShaderBase
 			offset += att.byteSize;
 		}
 	}
-	function disableAttributes() 
-	{
+	function disableAttributes() {
 		for (i in 0...attributes.length) {
 			var idx = attributes[i].location;
 			if (idx == -1) continue;
