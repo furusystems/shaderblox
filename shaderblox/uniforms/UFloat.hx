@@ -17,9 +17,7 @@ class UFloat extends UniformBase<Float> implements IAppliable  {
 		super(name, index, f);
 	}
 	public inline function apply():Void {
-		if (location.isValid()) {
-			GL.uniform1f(location, data);
-			dirty = false;
-		}
+		GL.uniform1f(location, data);
+		dirty = false;
 	}
 }

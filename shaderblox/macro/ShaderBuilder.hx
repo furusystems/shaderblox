@@ -273,10 +273,6 @@ class ShaderBuilder
 		throw("No const");
 	}
 	
-	static function unifyLineEndings(src:String):String {
-		return StringTools.trim(src.split("\r").join("\n").split("\n\n").join("\n"));
-	}
-	
 	static function pragmas(src:String):String {
 		var lines = src.split("\n");
 		var found:Bool = true;
@@ -288,6 +284,10 @@ class ShaderBuilder
 			}
 		}
 		return lines.join("\n");
+	}
+
+	static function unifyLineEndings(src:String):String {
+		return StringTools.trim(src.split("\r").join("\n").split("\n\n").join("\n"));
 	}
 
 	static function stripComments(src:String):String {

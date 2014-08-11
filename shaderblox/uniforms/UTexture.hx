@@ -24,7 +24,7 @@ class UTexture extends UniformBase<GLTexture> implements IAppliable  {
 		super(name, index, null);
 	}
 	public inline function apply():Void {
-		if (data == null || !location.isValid() ) return;
+		if (data == null) return;
 		var idx = GL.TEXTURE0 + samplerIndex;
 		if (lastActiveTexture != idx) {
 			GL.activeTexture(lastActiveTexture = idx);
