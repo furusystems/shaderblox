@@ -9,7 +9,7 @@ import lime.graphics.opengl.GLUniformLocation;
 @:generic @:remove class UniformBase<T> {
 	public var name:String;
 	public var location:GLUniformLocation;
-	public var data:T;
+	public var data(default, set):T;
 	public var dirty:Bool;
 	function new(name:String, index:GLUniformLocation, data:T) {
 		this.name = name;
@@ -23,5 +23,9 @@ import lime.graphics.opengl.GLUniformLocation;
 	}
 	public inline function setDirty() {
 		dirty = true;
+	}
+	inline function set_data(data:T):T{
+		setDirty();		
+		return this.data = data;
 	}
 }
