@@ -3,6 +3,7 @@ package shaderblox.uniforms;
 import snow.render.opengl.GL;
 #elseif lime
 import lime.graphics.opengl.GL;
+import lime.graphics.opengl.GLUniformLocation;
 
 using shaderblox.helpers.GLUniformLocationHelper;
 #end
@@ -21,7 +22,7 @@ private class Pt {
 }
 #end
 class UVec2 extends UniformBase<Pt> implements IAppliable  {
-	public function new(name:String, index:Int, x:Float = 0, y:Float = 0) {
+	public function new(name:String, index:GLUniformLocation, x:Float = 0, y:Float = 0) {
 		var p = new Pt();
 		p.x = x;
 		p.y = y;
