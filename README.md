@@ -1,3 +1,12 @@
+##Fork Motive:
+	- ~~Compatibility with lime-next~~
+	- ~~Add HTML target support~~
+	- ~~Improve GLSL parsing and fix bugs~~
+	- Add missing data types (ivec3, bvec2 etc...)
+	- Uniform array support, ie bool[3]
+	- Clean up ShaderBuilder
+-----
+
 Shaderblox
 ==========
 
