@@ -29,17 +29,14 @@ class ShaderBuilder
 	static function getSources(type:ClassType):Array<String> {
 		var meta = type.meta.get();
 		var out = [];
-		var foundVert:Bool, foundFrag:Bool;
 		var str:String;
 		for (i in meta.array()) {
 			switch(i.name) {
 				case ":vert":
-					foundVert = true; 
 					str = getString(i.params[0]);
 					str = pragmas(unifyLineEndings(str));
 					out[0] = str;
 				case ":frag":
-					foundFrag = true; 
 					str = getString(i.params[0]);
 					str = pragmas(unifyLineEndings(str));
 					out[1] = str;
@@ -84,20 +81,17 @@ class ShaderBuilder
 		}
 		sources.push(getSources(Context.getLocalClass().get()));
 		for (i in sources) {
-			
 			if (i[0] != null) vertSource += i[0] + "\n";
 			if (i[1] != null) fragSource += i[1] + "\n";
 		}
 		
 		if(vertSource!=""){
-			vertSource = pragmas(unifyLineEndings(vertSource));
 			buildUniforms(position, newFields, vertSource);
 			buildAttributes(position, newFields, vertSource);
 		}else {
 			throw "No vert source";
 		}
 		if(fragSource!=""){
-			fragSource = pragmas(unifyLineEndings(fragSource));
 			buildUniforms(position, newFields, fragSource);
 		}else {
 			throw "No frag source";
