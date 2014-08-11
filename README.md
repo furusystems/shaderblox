@@ -10,9 +10,11 @@ uniform highp
 vec3 a, b, 
 	c; 
 ```
+
 - Add missing uniform data types (ivec3, bvec2 etc...)
 - Uniform array support, eg: `uniform vec4 lightPosition[8];`
 - Clean up ShaderBuilder
+- Upload uniform only if changed (maybe abstract based uniforms?)
 
 ----------
 
