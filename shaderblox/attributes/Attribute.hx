@@ -11,5 +11,4 @@ class Attribute
 	public var location:Int;
 	public var name:String;
 	public var type:Int;
-	
 }
