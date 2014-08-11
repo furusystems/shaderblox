@@ -19,9 +19,7 @@ class UVec3 extends UniformBase<Vector4> implements IAppliable {
 		super(name, index, new Vector4(x, y, z));
 	}
 	public inline function apply():Void {
-		if (location.isValid()) {
-			GL.uniform3f(location, data.x, data.y, data.z);
-			dirty = false;
-		}
+		GL.uniform3f(location, data.x, data.y, data.z);
+		dirty = false;
 	}
 }
