@@ -62,13 +62,14 @@ class ShaderBuilder
 		var newFields:Array<Field> = [];
 		var sources:Array<Array<String>> = [];
 		var t2 = type;
-		vertSource = "";
-		fragSource = "";
+
+		var defaultESPrecision = "\n#ifdef GL_ES\nprecision mediump float;\n#endif\n";
+		vertSource = defaultESPrecision;
+		fragSource = defaultESPrecision;
 		
 		#if debug
 		trace("Building " + Context.getLocalClass());
 		#end
-		
 		
 		while (t2.superClass != null) {
 			t2 = t2.superClass.t.get();
