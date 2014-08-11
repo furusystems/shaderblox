@@ -2,11 +2,19 @@
 - ~~Compatibility with lime-next~~
 - ~~Add HTML target support~~
 - ~~Improve GLSL parsing and fix bugs~~
+	
+Messed up but valid declerations such as the following now work:
+```
+uniform highp
+/* ? */
+vec3 a, b, 
+	c; 
+```
 - Add missing uniform data types (ivec3, bvec2 etc...)
-- Uniform array support, ie bool[3]
+- Uniform array support, eg: `uniform vec4 lightPosition[8];`
 - Clean up ShaderBuilder
 
------
+----------
 
 Shaderblox
 ==========
