@@ -110,7 +110,6 @@ class ShaderBuilder
 			buildAttribute(position, fields, a);
 	}
 
-
 	static function buildUniforms(position, fields:Array<Field>, src:String) {
 		var uniformTypes = ['bool','int','float','vec2','vec3','vec4','bvec2','bvec3','bvec4','ivec2','ivec3','ivec4','mat2','mat3','mat4','sampler2D','samplerCube'];
 		var uniforms = extractGLSLGlobals(src, 'uniform', uniformTypes);
@@ -235,6 +234,10 @@ class ShaderBuilder
 				extrainfo = false;
 			case "mat4":
 				type.name = "UMatrix";
+			case "bool":
+				type.name = "UBool";
+			case "int":
+				type.name = "UInt";
 			case "float":
 				type.name = "UFloat";
 			case "vec2":
