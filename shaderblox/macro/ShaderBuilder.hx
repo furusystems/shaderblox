@@ -63,7 +63,6 @@ class ShaderBuilder
 		var superSources:Array<Array<String>> = [];
 		var t2 = type;
 
-		//empty sources
 		vertSource = '';
 		fragSource = '';
 
@@ -86,20 +85,25 @@ class ShaderBuilder
 			}
 		}
 
+		//Get current class sources
+		var localSources:Array<String> = getSources(Context.getLocalClass().get());
+
 		//Inherit from super
-		for (s in superSources) {
-			//Only inherit globals (for now)
-			for (g in extractGLSLGlobals(s[0]))
-				vertSource += GLSLGlobalToString(g)+"\n";
-				
-			for (g in extractGLSLGlobals(s[1]))
-				fragSource += GLSLGlobalToString(g)+"\n";
+		//	- only inherit globals (for now)
+		for (i in 0...superSources.length) {
+			var s = superSources[i];
+			if(!((i >= superSources.length-1) && (localSources[0] == null)))//don't add of top-most super if current source is null
+				for (g in extractGLSLGlobals(s[0]))
+					vertSource += GLSLGlobalToString(g)+"\n";
+			
+			if(!((i >= superSources.length-1) && (localSources[1] == null)))
+				for (g in extractGLSLGlobals(s[1]))
+					fragSource += GLSLGlobalToString(g)+"\n";
 		}
 
 		//Append local sources
-		var localSources:Array<String> = getSources(Context.getLocalClass().get());
-		if (localSources[0] != null) vertSource += localSources[0];
-		if (localSources[1] != null) fragSource += localSources[1];
+		vertSource += (localSources[0] != null ? localSources[0] : superSources[superSources.length-1][0]);
+		fragSource += (localSources[1] != null ? localSources[1] : superSources[superSources.length-1][1]);
 
 		if(vertSource!=""){
 			buildUniforms(position, newFields, vertSource);
@@ -184,7 +188,7 @@ class ShaderBuilder
 		return	g.storageQualifier+' '+
 				(g.precision != null ? g.precision : '')+' '+
 				g.type+' '+
-				g.name+' '+
+				g.name+
 				(g.arraySize != null ? '['+g.arraySize+']' : '')+';';
 
 	}
