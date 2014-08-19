@@ -13,7 +13,7 @@ using Lambda;
  */
 private typedef FieldDef = {index:Null<Int>, typeName:String, fieldName:String, extrainfo:Dynamic };
 private typedef AttribDef = {index:Int, typeName:String, fieldName:String, itemCount:Int };
-private typedef GLSLGlobal = {storageQualifier:String, ?precision:String, type:String, name:String, ?arraySize:Int};
+private typedef GLSLGlobal = {?storageQualifier:String, ?precision:String, type:String, name:String, ?arraySize:Int};
 class ShaderBuilder
 {
 	#if macro
@@ -46,64 +46,69 @@ class ShaderBuilder
 	}
 	
 	public static function build():Array<Field> {
-		var type = Context.getLocalClass().get();
-		asTemplate = false;
-		for (f in type.meta.get().array()) {
-			if (f.name == ":shaderNoBuild") return null;
-			if (f.name == ":shaderTemplate") {
-				asTemplate = true;
+			var type = Context.getLocalClass().get();
+			asTemplate = false;
+			for (f in type.meta.get().array()) {
+				if (f.name == ":shaderNoBuild") return null;
+				if (f.name == ":shaderTemplate") {
+					asTemplate = true;
+				}
 			}
-		}
-		
-		uniformFields = [];
-		attributeFields = [];
-		var position = haxe.macro.Context.currentPos();
-		var fields = Context.getBuildFields();
-		var newFields:Array<Field> = [];
-		var superSources:Array<Array<String>> = [];
-		var t2 = type;
-
-		vertSource = '';
-		fragSource = '';
-
-		var defaultESPrecision = "\n#ifdef GL_ES\nprecision mediump float;\n#endif\n";
-		vertSource += defaultESPrecision;
-		fragSource += defaultESPrecision;
-		
-		#if debug
-		trace("Building " + Context.getLocalClass());
-		#end
-		
-		//Get super class sources
-		while (t2.superClass != null) {
-			t2 = t2.superClass.t.get();
-			if (t2.superClass != null) {
-				#if debug
-				trace("\tIncluding: " + t2.name);
-				#end
-				superSources.unshift(getSources(t2));
-			}
-		}
-
-		//Get current class sources
-		var localSources:Array<String> = getSources(Context.getLocalClass().get());
-
-		//Inherit from super
-		//	- only inherit globals (for now)
-		for (i in 0...superSources.length) {
-			var s = superSources[i];
-			if(!((i >= superSources.length-1) && (localSources[0] == null)))//don't add of top-most super if current source is null
-				for (g in extractGLSLGlobals(s[0]))
-					vertSource += GLSLGlobalToString(g)+"\n";
 			
-			if(!((i >= superSources.length-1) && (localSources[1] == null)))
-				for (g in extractGLSLGlobals(s[1]))
-					fragSource += GLSLGlobalToString(g)+"\n";
-		}
+			uniformFields = [];
+			attributeFields = [];
+			var position = haxe.macro.Context.currentPos();
+			var fields = Context.getBuildFields();
+			var newFields:Array<Field> = [];
+			var superSources:Array<Array<String>> = [];
+			var t2 = type;
 
-		//Append local sources
-		vertSource += (localSources[0] != null ? localSources[0] : superSources[superSources.length-1][0]);
-		fragSource += (localSources[1] != null ? localSources[1] : superSources[superSources.length-1][1]);
+			vertSource = '';
+			fragSource = '';
+
+			var defaultESPrecision = "\n#ifdef GL_ES\nprecision mediump float;\n#endif\n";
+			vertSource += defaultESPrecision;
+			fragSource += defaultESPrecision;
+			
+			#if debug
+			trace("Building " + Context.getLocalClass());
+			#end
+			
+			//Get super class sources
+			while (t2.superClass != null) {
+				t2 = t2.superClass.t.get();
+				if (t2.superClass != null) {
+					#if debug
+					trace("\tIncluding: " + t2.name);
+					#end
+					superSources.unshift(getSources(t2));
+				}
+			}
+
+			//Get current class sources
+			var localSources:Array<String> = getSources(Context.getLocalClass().get());
+
+			//Inherit from super
+			for (i in 0...superSources.length) {
+				var s = superSources[i];
+				if(s[0]==null)s[0]='';
+				if(s[1]==null)s[1]='';
+
+				if(!((i >= superSources.length-1) && (localSources[0] == null))){//don't strip top-most super if current source is null
+					s[0] = stripMainAndComments(s[0]);
+				}
+		
+				if(!((i >= superSources.length-1) && (localSources[1] == null))){
+					s[1] = stripMainAndComments(s[1]);
+				}
+
+				vertSource += s[0];
+				fragSource += s[1];
+			}
+
+			//Append local sources
+			vertSource += (localSources[0] != null ? localSources[0] :'');
+			fragSource += (localSources[1] != null ? localSources[1] :'');
 
 		if(vertSource!=""){
 			buildUniforms(position, newFields, vertSource);
@@ -147,13 +152,12 @@ class ShaderBuilder
 		allowedTypes['varying']   = ['float','vec2','vec3','vec4','mat2','mat3','mat4'];
 
 		var str = stripComments(src);
-		var precisionQualifiers = ['lowp', 'mediump', 'highp'];
 
 		var globals = new Array<GLSLGlobal>();
 
 		for (storageQualifier in storageQualifiers) {
 			var types = allowedTypes[storageQualifier];
-			var reg = new EReg(storageQualifier+'\\s+(('+precisionQualifiers.join('|')+')\\s+)?('+types.join('|')+')\\s+([^;]+)', 'gm');//we must double escape characters in this format
+			var reg = new EReg(storageQualifier+'\\s+((lowp|mediump|highp)\\s+)?('+types.join('|')+')\\s+([^;]+)', 'gm');//we must double escape characters in this format
 			
 			while(reg.match(str)){
 		        var precision = reg.matched(2);
@@ -185,7 +189,7 @@ class ShaderBuilder
 	}
 
 	static function GLSLGlobalToString(g:GLSLGlobal):String{
-		return	g.storageQualifier+' '+
+		return	(g.storageQualifier != null ? g.storageQualifier : '')+' '+
 				(g.precision != null ? g.precision : '')+' '+
 				g.type+' '+
 				g.name+
@@ -336,6 +340,31 @@ class ShaderBuilder
 
 	static function stripComments(src:String):String {
 		return (~/(?:\/\*(?:[\s\S]*?)\*\/)|(?:\/\/(?:.*)$)/igm).replace(src, '');//#1 = block comments, #2 = line comments
+	}
+
+	static function stripMainAndComments(src:String):String {
+		if(src == null)return null;
+		var str = stripComments(src);
+		var reg = (~/\s+(?:(lowp|mediump|highp)\s+)?(void)\s+([main]+)\s*\([^\)]*\)\s*\{/gm);
+        
+        var matched = reg.match(str);
+        if(!matched)return str;
+        
+        var remainingStr = reg.matchedRight();
+        
+        var mainEnd:Int = 0;
+        //find closing bracket
+        var open = 1;
+        for(i in 0...remainingStr.length){
+            var c = remainingStr.charAt(i);
+            if(c=="{")open++;else if(c=="}")open--;
+        	if(open==0){
+                mainEnd = i+1;
+                break;
+            }
+        }
+
+		return reg.matchedLeft()+remainingStr.substring(mainEnd, remainingStr.length);
 	}
 	
 	static function buildOverrides(fields:Array<Field>) 
