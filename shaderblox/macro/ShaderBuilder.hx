@@ -96,6 +96,7 @@ class ShaderBuilder
 			var s = sources[i];
 			if(hasMain(s[0]))
 				highestMainVert = i;
+
 			if(hasMain(s[1]))
 				highestMainFrag = i;
 		}
@@ -108,12 +109,14 @@ class ShaderBuilder
 
 			if(i<highestMainVert)	s[0] = stripMainAndComments(s[0]);
 			else 					s[0] = stripComments(s[0]);
+
 			if(i<highestMainFrag)	s[1] = stripMainAndComments(s[1]);
 			else 					s[1] = stripComments(s[1]);
 
 			vertSource += "\n"+s[0]+"\n";
 			fragSource += "\n"+s[1]+"\n";
 		}
+
 
 		if(vertSource!=""){
 			buildUniforms(position, newFields, vertSource);
@@ -347,7 +350,7 @@ class ShaderBuilder
 		return (~/(?:\/\*(?:[\s\S]*?)\*\/)|(?:\/\/(?:.*)$)/igm).replace(src, '');//#1 = block comments, #2 = line comments
 	}
 
-	static var mainReg = (~/\s+(?:(lowp|mediump|highp)\s+)?(void)\s+([main]+)\s*\([^\)]*\)\s*\{/gm);
+	static var mainReg = (~/(?:\s|^)(?:(lowp|mediump|highp)\s+)?(void)\s+([main]+)\s*\([^\)]*\)\s*\{/gm);
 
 	static function hasMain(src:String):Bool{
 		if(src == null)return false;
