@@ -46,69 +46,74 @@ class ShaderBuilder
 	}
 	
 	public static function build():Array<Field> {
-			var type = Context.getLocalClass().get();
-			asTemplate = false;
-			for (f in type.meta.get().array()) {
-				if (f.name == ":shaderNoBuild") return null;
-				if (f.name == ":shaderTemplate") {
-					asTemplate = true;
-				}
+		var type = Context.getLocalClass().get();
+		asTemplate = false;
+		for (f in type.meta.get().array()) {
+			if (f.name == ":shaderNoBuild") return null;
+			if (f.name == ":shaderTemplate") {
+				asTemplate = true;
 			}
-			
-			uniformFields = [];
-			attributeFields = [];
-			var position = haxe.macro.Context.currentPos();
-			var fields = Context.getBuildFields();
-			var newFields:Array<Field> = [];
-			var superSources:Array<Array<String>> = [];
-			var t2 = type;
-
-			vertSource = '';
-			fragSource = '';
-
-			var defaultESPrecision = "\n#ifdef GL_ES\nprecision mediump float;\n#endif\n";
-			vertSource += defaultESPrecision;
-			fragSource += defaultESPrecision;
-			
-			#if debug
-			trace("Building " + Context.getLocalClass());
-			#end
-			
-			//Get super class sources
-			while (t2.superClass != null) {
-				t2 = t2.superClass.t.get();
-				if (t2.superClass != null) {
-					#if debug
-					trace("\tIncluding: " + t2.name);
-					#end
-					superSources.unshift(getSources(t2));
-				}
-			}
-
-			//Get current class sources
-			var localSources:Array<String> = getSources(Context.getLocalClass().get());
-
-			//Inherit from super
-			for (i in 0...superSources.length) {
-				var s = superSources[i];
-				if(s[0]==null)s[0]='';
-				if(s[1]==null)s[1]='';
-
-				if(!((i >= superSources.length-1) && (localSources[0] == null))){//don't strip top-most super if current source is null
-					s[0] = stripMainAndComments(s[0]);
-				}
+		}
 		
-				if(!((i >= superSources.length-1) && (localSources[1] == null))){
-					s[1] = stripMainAndComments(s[1]);
-				}
+		uniformFields = [];
+		attributeFields = [];
+		var position = haxe.macro.Context.currentPos();
+		var fields = Context.getBuildFields();
+		var newFields:Array<Field> = [];
+		var sources:Array<Array<String>> = [];
+		var t2 = type;
 
-				vertSource += s[0];
-				fragSource += s[1];
+		vertSource = '';
+		fragSource = '';
+
+		var defaultESPrecision = "\n#ifdef GL_ES\nprecision mediump float;\n#endif\n";
+		vertSource += defaultESPrecision;
+		fragSource += defaultESPrecision;
+		
+		#if debug
+		trace("Building " + Context.getLocalClass());
+		#end
+		
+		//Get super class sources
+		while (t2.superClass != null) {
+			t2 = t2.superClass.t.get();
+			if (t2.superClass != null) {
+				#if debug
+				trace("\tIncluding: " + t2.name);
+				#end
+				sources.unshift(getSources(t2));
 			}
+		}
 
-			//Append local sources
-			vertSource += (localSources[0] != null ? localSources[0] :'');
-			fragSource += (localSources[1] != null ? localSources[1] :'');
+		//Get current class sources
+		var localSources:Array<String> = getSources(Context.getLocalClass().get());
+		sources.push(localSources);
+
+		//Find highest level class with main
+		var highestMainVert:Int = -1;
+		var highestMainFrag:Int = -1;
+		for (i in 0...sources.length) {
+			var s = sources[i];
+			if(hasMain(s[0]))
+				highestMainVert = i;
+			if(hasMain(s[1]))
+				highestMainFrag = i;
+		}
+
+		//Construct source
+		for (i in 0...sources.length) {
+			var s = sources[i];
+			if(s[0]==null)s[0]="";
+			if(s[1]==null)s[1]="";
+
+			if(i<highestMainVert)	s[0] = stripMainAndComments(s[0]);
+			else 					s[0] = stripComments(s[0]);
+			if(i<highestMainFrag)	s[1] = stripMainAndComments(s[1]);
+			else 					s[1] = stripComments(s[1]);
+
+			vertSource += "\n"+s[0]+"\n";
+			fragSource += "\n"+s[1]+"\n";
+		}
 
 		if(vertSource!=""){
 			buildUniforms(position, newFields, vertSource);
@@ -342,10 +347,18 @@ class ShaderBuilder
 		return (~/(?:\/\*(?:[\s\S]*?)\*\/)|(?:\/\/(?:.*)$)/igm).replace(src, '');//#1 = block comments, #2 = line comments
 	}
 
+	static var mainReg = (~/\s+(?:(lowp|mediump|highp)\s+)?(void)\s+([main]+)\s*\([^\)]*\)\s*\{/gm);
+
+	static function hasMain(src:String):Bool{
+		if(src == null)return false;
+		var str = stripComments(src);
+		return mainReg.match(str);
+	}
+
 	static function stripMainAndComments(src:String):String {
 		if(src == null)return null;
 		var str = stripComments(src);
-		var reg = (~/\s+(?:(lowp|mediump|highp)\s+)?(void)\s+([main]+)\s*\([^\)]*\)\s*\{/gm);
+		var reg = mainReg;
         
         var matched = reg.match(str);
         if(!matched)return str;
