@@ -60,32 +60,47 @@ class ShaderBuilder
 		var position = haxe.macro.Context.currentPos();
 		var fields = Context.getBuildFields();
 		var newFields:Array<Field> = [];
-		var sources:Array<Array<String>> = [];
+		var superSources:Array<Array<String>> = [];
 		var t2 = type;
 
+		//empty sources
+		vertSource = '';
+		fragSource = '';
+
 		var defaultESPrecision = "\n#ifdef GL_ES\nprecision mediump float;\n#endif\n";
-		vertSource = defaultESPrecision;
-		fragSource = defaultESPrecision;
+		vertSource += defaultESPrecision;
+		fragSource += defaultESPrecision;
 		
 		#if debug
 		trace("Building " + Context.getLocalClass());
 		#end
 		
+		//Get super class sources
 		while (t2.superClass != null) {
 			t2 = t2.superClass.t.get();
 			if (t2.superClass != null) {
 				#if debug
 				trace("\tIncluding: " + t2.name);
 				#end
-				sources.unshift(getSources(t2));
+				superSources.unshift(getSources(t2));
 			}
 		}
-		sources.push(getSources(Context.getLocalClass().get()));
-		for (i in sources) {
-			if (i[0] != null) vertSource += i[0] + "\n";
-			if (i[1] != null) fragSource += i[1] + "\n";
+
+		//Inherit from super
+		for (s in superSources) {
+			//Only inherit globals (for now)
+			for (g in extractGLSLGlobals(s[0]))
+				vertSource += GLSLGlobalToString(g)+"\n";
+				
+			for (g in extractGLSLGlobals(s[1]))
+				fragSource += GLSLGlobalToString(g)+"\n";
 		}
-		
+
+		//Append local sources
+		var localSources:Array<String> = getSources(Context.getLocalClass().get());
+		if (localSources[0] != null) vertSource += localSources[0];
+		if (localSources[1] != null) fragSource += localSources[1];
+
 		if(vertSource!=""){
 			buildUniforms(position, newFields, vertSource);
 			buildAttributes(position, newFields, vertSource);
@@ -104,53 +119,74 @@ class ShaderBuilder
 	}
 	
 	static function buildAttributes(position, fields:Array<Field>, src:String) {
-		var attributeTypes = ['float','vec2','vec3','vec4','mat2','mat3','mat4'];
-		var attributes = extractGLSLGlobals(src, 'attribute', attributeTypes);
+		var attributes = extractGLSLGlobals(src, ['attribute']);
 		for(a in attributes)
 			buildAttribute(position, fields, a);
 	}
 
 	static function buildUniforms(position, fields:Array<Field>, src:String) {
-		var uniformTypes = ['bool','int','float','vec2','vec3','vec4','bvec2','bvec3','bvec4','ivec2','ivec3','ivec4','mat2','mat3','mat4','sampler2D','samplerCube'];
-		var uniforms = extractGLSLGlobals(src, 'uniform', uniformTypes);
+		var uniforms = extractGLSLGlobals(src, ['uniform']);
 		for(u in uniforms)
 			buildUniform(position, fields, u);
 	}
 
-	static function extractGLSLGlobals(src:String, storageQualifier:String, types:Array<String>){
+	static function extractGLSLGlobals(src:String, ?storageQualifiers:Array<String>):Array<GLSLGlobal>{
+		if(storageQualifiers==null)
+			storageQualifiers = ['const', 'attribute', 'uniform', 'varying'];
+
+		if(src==null) return [];
+
+		var allowedTypes = new Map<String, Array<String>>();
+		allowedTypes['const']     = ['bool','int','float','vec2','vec3','vec4','bvec2','bvec3','bvec4','ivec2','ivec3','ivec4','mat2','mat3','mat4'];
+		allowedTypes['attribute'] = ['float','vec2','vec3','vec4','mat2','mat3','mat4'];
+		allowedTypes['uniform']   = ['bool','int','float','vec2','vec3','vec4','bvec2','bvec3','bvec4','ivec2','ivec3','ivec4','mat2','mat3','mat4','sampler2D','samplerCube'];
+		allowedTypes['varying']   = ['float','vec2','vec3','vec4','mat2','mat3','mat4'];
+
 		var str = stripComments(src);
-
 		var precisionQualifiers = ['lowp', 'mediump', 'highp'];
-
-		var reg = new EReg(storageQualifier+'\\s+(('+precisionQualifiers.join('|')+')\\s+)?('+types.join('|')+')\\s+([^;]+)', 'gm');//we must double escape characters in this format
 
 		var globals = new Array<GLSLGlobal>();
 
-		while(reg.match(str)){
-	        var precision = reg.matched(2);
-	        var type = reg.matched(3);
-	        var rawNamesStr = reg.matched(4);
+		for (storageQualifier in storageQualifiers) {
+			var types = allowedTypes[storageQualifier];
+			var reg = new EReg(storageQualifier+'\\s+(('+precisionQualifiers.join('|')+')\\s+)?('+types.join('|')+')\\s+([^;]+)', 'gm');//we must double escape characters in this format
+			
+			while(reg.match(str)){
+		        var precision = reg.matched(2);
+		        var type = reg.matched(3);
+		        var rawNamesStr = reg.matched(4);
 
-	        //Extract comma separated names and array sizes (ie name[size])
-	        var rName = ~/^\s*([\w\d_]+)(\[(\d*)\])?\s*$/igm;
-	        for(rawName in rawNamesStr.split(',')){
-				if(!rName.match(rawName)) continue;//name does not conform
+		        //Extract comma separated names and array sizes (ie name[size])
+		        var rName = ~/^\s*([\w\d_]+)(\[(\d*)\])?\s*$/igm;
+		        for(rawName in rawNamesStr.split(',')){
+					if(!rName.match(rawName)) continue;//name does not conform
 
-	           	var global = {
-	           		storageQualifier: storageQualifier,
-	           		precision: precision,
-	           		type: type,
-	           		name: rName.matched(1),
-	           		arraySize: Std.parseInt(rName.matched(3))
-	           	};
+		           	var global = {
+		           		storageQualifier: storageQualifier,
+		           		precision: precision,
+		           		type: type,
+		           		name: rName.matched(1),
+		           		arraySize: Std.parseInt(rName.matched(3))
+		           	};
 
-	            globals.push(global);
-	        }
+		            globals.push(global);
+		        }
 
-	        str = reg.matchedRight();
-	    }
+		        str = reg.matchedRight();
+		    }
+
+		}
 
 	    return globals;
+	}
+
+	static function GLSLGlobalToString(g:GLSLGlobal):String{
+		return	g.storageQualifier+' '+
+				(g.precision != null ? g.precision : '')+' '+
+				g.type+' '+
+				g.name+' '+
+				(g.arraySize != null ? '['+g.arraySize+']' : '')+';';
+
 	}
 	
 	static function checkIfFieldDefined(name:String):Bool {

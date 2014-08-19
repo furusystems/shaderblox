@@ -66,7 +66,6 @@ class ShaderBase
 			trace("Error compiling vertex shader: " + GL.getShaderInfoLog(vertexShader));
 			trace("\n"+vertSource);
 			throw "Error compiling vertex shader";
-			
 		}
 
 		var fragmentShader = GL.createShader (GL.FRAGMENT_SHADER);
