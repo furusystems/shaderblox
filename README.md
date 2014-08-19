@@ -15,6 +15,7 @@ vec3 a, b,
 - Uniform array support, eg: `uniform vec4 lightPosition[8];`
 - Clean up ShaderBuilder
 - Upload uniform only if changed (maybe abstract based uniforms?)
+- Method inheritance
 
 ----------
 
