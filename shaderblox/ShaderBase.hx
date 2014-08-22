@@ -22,6 +22,7 @@ import shaderblox.uniforms.UTexture;
 @:autoBuild(shaderblox.macro.ShaderBuilder.build()) 
 class ShaderBase
 {	
+	public var prog:GLProgram;
 	public var active:Bool;
 	var uniforms:Array<IAppliable>;
 	var attributes:Array<Attribute>;
@@ -30,7 +31,6 @@ class ShaderBase
 	var name:String;
 	var vert:GLShader;
 	var frag:GLShader;
-	var prog:GLProgram;
 	var ready:Bool;
 	var numTextures:Int;
 	
@@ -61,7 +61,7 @@ class ShaderBase
 		var vertexShader = GL.createShader (GL.VERTEX_SHADER);
 		GL.shaderSource (vertexShader, vertSource);
 		GL.compileShader (vertexShader);
-		
+
 		if (GL.getShaderParameter (vertexShader, GL.COMPILE_STATUS) == 0) {
 			trace("Error compiling vertex shader: " + GL.getShaderInfoLog(vertexShader));
 			trace("\n"+vertSource);
@@ -150,7 +150,7 @@ class ShaderBase
 		}
 	}
 	
-	public function activate(initUniforms:Bool = true, initAttribs:Bool = false):Void {
+	public inline function activate(initUniforms:Bool = true, initAttribs:Bool = false):Void {
 		if (active) {
 			if (initUniforms) setUniforms();
 			if (initAttribs) setAttributes();
