@@ -167,7 +167,7 @@ class ShaderBase
 		if (!active) return;
 		active = false;
 		disableAttributes();
-		GL.useProgram(null);
+		// GL.useProgram(null);, seems to be fairly slow
 	}
 	
 	public inline function setUniforms() {
