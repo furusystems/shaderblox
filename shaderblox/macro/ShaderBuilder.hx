@@ -192,6 +192,20 @@ class ShaderBuilder
 	}
 	static function buildUniform(position, fields, source:String) {
 		source = StringTools.trim(source);
+		
+		//check annotations
+		var annotation:Null<String>;
+		var ai = source.indexOf("@");
+		if (ai > -1) {
+			//annotation found, which?
+			annotation = source.substr(ai, source.indexOf(" ", ai));
+			source = { var s = source.split(" "); s.shift(); s.join(" "); };
+			switch(annotation) {
+				case "@color":
+				default: throw "Unknown annotation: " + annotation;
+			}
+		}
+		
 		var args = source.split(" ").slice(1);
 		var name = StringTools.trim(args[1].split(";").join(""));
 		
@@ -200,6 +214,7 @@ class ShaderBuilder
 		for (existing in uniformFields) {
 			if (existing.fieldName == name) return; 
 		}
+		
 		var pack = ["shaderblox", "uniforms"];
 		var type = { pack : pack, name : "UMatrix", params : [], sub : null };
 		var extrainfo:Dynamic = null;
@@ -217,9 +232,17 @@ class ShaderBuilder
 			case "vec2":
 				type.name = "UVec2";
 			case "vec3":
-				type.name = "UVec3";
+				if (annotation == "@color") {
+					type.name = "UColor3";
+				}else {
+					type.name = "UVec3";
+				}
 			case "vec4":
-				type.name = "UVec4";
+				if (annotation == "@color") {
+					type.name = "UColor4";
+				}else {
+					type.name = "UVec4";
+				}
 			default:
 				throw "Unknown uniform type: " + args[0];
 		}
@@ -344,7 +367,6 @@ class ShaderBuilder
 									exprs.push(
 										macro {
 											aStride += $v { stride };
-											//Reflect.setField(this, "aStride", $v{stride});
 										}
 									);
 								default:
