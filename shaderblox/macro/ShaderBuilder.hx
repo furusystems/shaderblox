@@ -24,28 +24,6 @@ class ShaderBuilder
 	static var asTemplate:Bool;
 	static inline var GL_FLOAT:Int = 0x1406;
 	static inline var GL_INT:Int = 0x1404;
-
-	static function getSources(type:ClassType):Array<String> {
-		var meta = type.meta.get();
-		var out = [];
-		var foundVert:Bool, foundFrag:Bool;
-		var str:String;
-		for (i in meta.array()) {
-			switch(i.name) {
-				case ":vert":
-					foundVert = true; 
-					str = getString(i.params[0]);
-					str = pragmas(unifyLineEndings(str));
-					out[0] = str;
-				case ":frag":
-					foundFrag = true; 
-					str = getString(i.params[0]);
-					str = pragmas(unifyLineEndings(str));
-					out[1] = str;
-			}
-		}
-		return out;
-	}
 	
 	public static function build():Array<Field> {
 		var type = Context.getLocalClass().get();
@@ -71,6 +49,19 @@ class ShaderBuilder
 		trace("Building " + Context.getLocalClass());
 		#end
 		
+		//static fields
+		
+		var ct = TPath( { pack:type.pack, name:type.name } );
+		
+		var f = {
+			name:"instance",
+			kind:FVar(ct),
+			access:[APublic, AStatic],
+			pos:position
+		}
+		fields.push(f);
+		
+		//
 		
 		while (t2.superClass != null) {
 			t2 = t2.superClass.t.get();
@@ -93,6 +84,7 @@ class ShaderBuilder
 			var lines:Array<String> = vertSource.split("\n");
 			buildUniforms(position, newFields, lines);
 			buildAttributes(position, newFields, lines);
+			vertSource = lines.join("\n");
 		}else {
 			throw "No vert source";
 		}
@@ -100,6 +92,7 @@ class ShaderBuilder
 			fragSource = pragmas(unifyLineEndings(fragSource));
 			var lines:Array<String> = fragSource.split("\n");
 			buildUniforms(position, newFields, lines);
+			fragSource = lines.join("\n");
 		}else {
 			throw "No frag source";
 		}
@@ -108,6 +101,30 @@ class ShaderBuilder
 		
 		return complete(newFields.concat(fields));
 	}
+
+	static function getSources(type:ClassType):Array<String> {
+		var meta = type.meta.get();
+		var out = [];
+		var foundVert:Bool, foundFrag:Bool;
+		var str:String;
+		for (i in meta.array()) {
+			switch(i.name) {
+				case ":vert":
+					foundVert = true; 
+					str = getString(i.params[0]);
+					str = pragmas(unifyLineEndings(str));
+					out[0] = str;
+				case ":frag":
+					foundFrag = true; 
+					str = getString(i.params[0]);
+					str = pragmas(unifyLineEndings(str));
+					out[1] = str;
+			}
+		}
+		return out;
+	}
+	
+	
 	
 	static function buildAttributes(position, fields:Array<Field>, lines:Array<String>) {
 		for (l in lines) {
@@ -117,10 +134,12 @@ class ShaderBuilder
 		}
 	}
 	static function buildUniforms(position, fields:Array<Field>, lines:Array<String>) {
-		for (l in lines) {
+		for (i in 0...lines.length) {
+			var l = lines[i];
 			if (l.indexOf("uniform") > -1) {
-				buildUniform(position, fields, l);
+				l = buildUniform(position, fields, l);
 			}
+			lines[i] = l;
 		}
 	}
 	
@@ -190,7 +209,7 @@ class ShaderBuilder
 		var f = { index:attributeFields.length, fieldName:name, typeName:pack.join(".") + "." + attribClassName, itemCount:itemCount };
 		attributeFields.push(f);
 	}
-	static function buildUniform(position, fields, source:String) {
+	static function buildUniform(position, fields, source:String):String {
 		source = StringTools.trim(source);
 		
 		//check annotations
@@ -209,10 +228,10 @@ class ShaderBuilder
 		var args = source.split(" ").slice(1);
 		var name = StringTools.trim(args[1].split(";").join(""));
 		
-		if (checkIfFieldDefined(name)) return;
+		if (checkIfFieldDefined(name)) return source;
 		
 		for (existing in uniformFields) {
-			if (existing.fieldName == name) return; 
+			if (existing.fieldName == name) return source; 
 		}
 		
 		var pack = ["shaderblox", "uniforms"];
@@ -258,6 +277,7 @@ class ShaderBuilder
 		uniformFields.push( 
 			{index:-1, fieldName:f.name, typeName:pack.join(".") + "." + type.name, extrainfo:extrainfo } 
 		);
+		return source;
 	}
 	
 	static function getString(e:Expr):String {
@@ -333,34 +353,27 @@ class ShaderBuilder
 									
 									for (uni in uniformFields) {
 										var name:String = uni.fieldName;
-										if (uni.typeName.split(".").pop() == "UTexture"){
-											exprs.push(
-												macro {
-													var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName }, $v { uni.index }, $v { uni.extrainfo } ]);
-													Reflect.setField(this, $v { name }, instance);
-													uniforms.push(instance);
-												}
-											);
+										var i:Expr = null;
+										if (uni.typeName.split(".").pop() == "UTexture") {
+											i = instantiation(uni.typeName, [macro $v{uni.fieldName}, macro  $v{uni.index}, macro  $v{uni.extrainfo}]);
 										}else {
-											exprs.push(
-												macro {
-													var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName}, $v { uni.index } ]);
-													Reflect.setField(this, $v { name }, instance);
-													uniforms.push(instance);
-												}
-											);
+											i = instantiation(uni.typeName, [macro $v{uni.fieldName}, macro  $v{uni.index}]);
 										}
+										exprs.push(
+											macro {
+												uniforms.push($i { name } = $ { i });
+											}
+										);
 									}
 									var stride:Int = 0;
 									for (att in attributeFields) {
 										var name:String = att.fieldName;
 										var numItems:Int = att.itemCount;
 										stride += numItems * 4;
+										var i:Expr = instantiation(att.typeName, [macro $v{att.fieldName}, macro  $v{att.index}, macro  $v{numItems}]);
 										exprs.push(
 											macro {
-												var instance = Type.createInstance( Type.resolveClass( $v { att.typeName } ), [$v { att.fieldName }, $v { att.index }, $v { numItems } ]);
-												Reflect.setField(this, $v { name }, instance);
-												attributes.push(instance);
+												attributes.push($i { name } = $ { i });
 											}
 										);
 									}
