@@ -380,6 +380,14 @@ class ShaderBuilder
 		attributeFields = null;
 		return allFields;
 	}
+	
+	static function instantiation(name:String, ?args:Array<Expr>):Expr {
+		if (args == null) args = [];
+		var s = name.split(".");
+		name = s.pop();
+		return { expr:ENew( { name:name, pack:s }, args), pos:Context.currentPos() };
+	}
+	
 	public static function getFileContent( fileName : Expr ) {
         var fileStr = null;
         switch( fileName.expr ) {
