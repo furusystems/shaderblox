@@ -400,19 +400,5 @@ class ShaderBuilder
 		name = s.pop();
 		return { expr:ENew( { name:name, pack:s }, args), pos:Context.currentPos() };
 	}
-	
-	public static function getFileContent( fileName : Expr ) {
-        var fileStr = null;
-        switch( fileName.expr ) {
-        case EConst(c):
-            switch( c ) {
-            case CString(s): fileStr = s;
-            default:
-            }
-        default:
-        };
-        if( fileStr == null ) Context.error("Constant string expected", fileName.pos);
-        return Context.makeExpr(sys.io.File.getContent(fileStr),fileName.pos);
-    }
 	#end
 }
