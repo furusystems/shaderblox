@@ -51,7 +51,7 @@ class ShaderBuilder
 		
 		//static fields
 		
-		var ct = TPath( { pack:type.pack, name:type.name } );
+		var ct = TPath( { pack:["shaderblox"], name:"Shader" } );
 		
 		var f = {
 			name:"instance",
@@ -164,7 +164,7 @@ class ShaderBuilder
 		source = StringTools.trim(source);
 		var args = source.split(" ").slice(1);
 		var name = StringTools.trim(args[1].split(";").join(""));
-		
+
 		//Avoid field redefinitions
 		if (checkIfFieldDefined(name)) return;
 		
@@ -313,16 +313,15 @@ class ShaderBuilder
 	
 	static function buildOverrides(fields:Array<Field>) 
 	{
-		var expression = macro {
-			initFromSource($v { vertSource }, $v { fragSource } );
-			ready = true;
-		}
+		
 		var func = {
-			name : "create", 
+			name : "setAttributes", 
 			doc : null, 
 			meta : [], 
 			access : [AOverride, APublic], 
-			kind : FFun({args:[], params:[], ret:null, expr:expression}),
+			kind : FFun( { args:[], params:[], ret:null, expr:macro {
+				instance.setAttributes();
+			}}),
 			pos : Context.currentPos() 
 		};
 		fields.push(func);
@@ -336,11 +335,77 @@ class ShaderBuilder
 			pos : Context.currentPos() 
 		};
 		fields.push(func);
+		
+		
+		var func = {
+			name : "destroy", 
+			doc : null, 
+			meta : [], 
+			access : [AOverride, APublic], 
+			kind : FFun( { args:[], params:[], ret:null, expr:macro { 
+				if (instance != null) {
+					instance.dispose();
+					instance = null;
+				}
+			}} ),
+			pos : Context.currentPos() 
+		};
+		fields.push(func);
+		
+		var func = {
+			name : "activate", 
+			doc : null, 
+			meta : [], 
+			access : [AOverride, APublic], 
+			kind : FFun( { args:[], params:[], ret:null, expr:macro { 
+					if (instance == null) {
+						trace("Creating shader instance");
+						instance = new shaderblox.Shader();
+						instance.aStride = aStride;
+						instance.attributes = attributes;
+						instance.name = name;
+						instance.initFromSource($v { vertSource }, $v { fragSource } );
+						validateUniformLocations(instance);
+					}
+					if (!instance.ready) {
+						instance.rebuild();
+						validateUniformLocations(instance);
+					}
+					if (!ready) {
+						validateUniformLocations(instance);
+					}
+					
+					if (active) {
+						instance.setAttributes();
+						setUniforms();
+						return;
+					}
+					instance.bind();
+					setUniforms();
+					active = true;
+				}} ),
+			pos : Context.currentPos() 
+		};
+		fields.push(func);
+		
+		var func = {
+			name : "deactivate", 
+			doc : null, 
+			meta : [], 
+			access : [AOverride, APublic], 
+			kind : FFun( { args:[], params:[], ret:null, expr:macro { 					
+					if (!active) return;
+					instance.disableAttributes();
+					instance.release();
+					active = false;
+				}} ),
+			pos : Context.currentPos() 
+		};
+		fields.push(func);
 	}
 	
 	static function complete(allFields:Array<Field>) 
 	{
-		var constructorFound:Bool = false;
 		for (f in allFields) {
 			switch(f.name) {
 				case "createProperties":
@@ -350,7 +415,6 @@ class ShaderBuilder
 								case EBlock(exprs):
 									//Populate our variables
 									//Create an array of uniforms
-									
 									for (uni in uniformFields) {
 										var name:String = uni.fieldName;
 										var i:Expr = null;
@@ -373,7 +437,7 @@ class ShaderBuilder
 										var i:Expr = instantiation(att.typeName, [macro $v{att.fieldName}, macro  $v{att.index}, macro  $v{numItems}]);
 										exprs.push(
 											macro {
-												attributes.push($i { name } = $ { i });
+												attributes.push($ { i });
 											}
 										);
 									}
