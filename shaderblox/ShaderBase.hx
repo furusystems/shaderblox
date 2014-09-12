@@ -127,7 +127,7 @@ class ShaderBase
 				#if (debug && !display) trace("Defined uniform "+u.name+" at "+u.location); #end
 			}else {
 				removeList.push(u);
-				trace("WARNING(" + name + "): unused uniform '" + u.name +"'");
+				#if (debug && !display) trace("WARNING(" + name + "): unused uniform '" + u.name +"'");
 			}
 		}
 		while (removeList.length > 0) {
@@ -145,7 +145,7 @@ class ShaderBase
 		for (a in attributes) {
 			var loc = attributeLocations.get(a.name);
 			a.location = loc == null? -1:loc;
-			if (a.location == -1) trace("WARNING(" + name + "): unused attribute '" + a.name +"'");
+			#if (debug && !display) if (a.location == -1) trace("WARNING(" + name + "): unused attribute '" + a.name +"'");
 			#if (debug && !display) trace("Defined attribute "+a.name+" at "+a.location); #end
 		}
 	}
