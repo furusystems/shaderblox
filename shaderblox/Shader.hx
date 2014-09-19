@@ -118,7 +118,6 @@ class Shader
 	public function release() {
 		if (!active) return;
 		disableAttributes();
-		GL.useProgram(null);
 		active = false;
 	}
 	public function dispose() {
