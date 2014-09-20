@@ -19,7 +19,7 @@ class GLSLParser
 	static inline var SPC = " ";
 	
 	static var functionBodyEreg:EReg = ~/\w[\w\s]+[\w\s]*\([\w\s,]*\)\s*{[\s\w\s=;,\.\(\)\+\-\*\\\[\]]*}/;
-	static var fieldEreg:EReg = ~/\w+\s+\w+\s+\w+\s*;/;
+	static var fieldEreg:EReg = ~/[\w+\s+]+\w+\s+\w+\s*/;
 	static var functionDeclEreg:EReg = ~/\w+\s+\w+\(\s*[\w\s,]*\)/;
 	static var functionArgEreg:EReg = ~/\(\s*[\w\s,]*\)/;
 	
