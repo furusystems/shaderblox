@@ -1,12 +1,12 @@
 package shaderblox.macro.parser;
-
+import shaderblox.macro.parser.Tokens;
 /**
  * ...
  * @author Andreas Rønning
  */
-typedef FunctionArg = { name:String, type:String }
-typedef FunctionSignature = { returnType:String, name:String, args:Array<FunctionArg> }
-typedef FieldSignature = { type:String, name:String, defaultValue:Null<Dynamic>, annotations:Array<String> }
+typedef FunctionArg = { name:String, type:GLSLType}
+typedef FunctionSignature = { returnType:GLSLType, name:String, args:Array<FunctionArg> }
+typedef FieldSignature = { type:GLSLType, name:String, defaultValue:Null<Dynamic>, attributes:Array<GLSLFieldAttrib> }
 typedef ParseError = { line:Int, msg:String }
 class GLSLBlock {
 	public var sig:FunctionSignature;

@@ -5,6 +5,13 @@ package shaderblox.macro.parser;
  * @author Andreas Rønning
  */
 
+enum GLSLFieldAttrib {
+	Pragma;
+	Uniform;
+	Varying;
+	Attribute;
+}
+
 enum GLSLType {
 	TFloat;
 	TInt;
@@ -17,10 +24,7 @@ enum GLSLType {
 	TFunc(src:String);
 }
 enum GLSLDeclToken {
-	Pragma;
-	Uniform;
-	Varying;
-	Attribute;
+	Attribute(a:GLSLFieldAttrib);
 	Ident(str:String);
 	FType(t:GLSLType);
 }

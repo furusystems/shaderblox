@@ -16,5 +16,20 @@ class StringHelpers
 	static public inline function trimSemis(src:String):String {
 		return src.replace(";", "");
 	}
+	static public inline function trimParens(src:String):String {
+		return src.replace(")", "").replace("(", "");
+	}
+	static public inline function cleanWhitespace(src:String):String {
+		while (src.indexOf("  ") > -1) {
+			src = src.replace("  ", " ");
+		}
+		return src;
+	}
+	static public inline function trimBraces(src:String):String {
+		return src.replace("}", "").replace("{", "");
+	}
+	static public inline function flatten(src:String):String {
+		return src.replace("\n", "");
+	}
 	
 }
