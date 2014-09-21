@@ -28,6 +28,7 @@ class GLSLParser
 	public static function read(str:String):Null<ShaderInfo> {
 		var fields:Array<String> = [];
 		var info = new ShaderInfo();
+		info.source = str;
 		while (fieldEreg.match(str)) {
 			var match = fieldEreg.matched(0);
 			info.fields.push(parseField(match));
@@ -71,7 +72,7 @@ class GLSLParser
 		chars.reverse();
 		strBuf = "";
 		var field = new GLSLField();
-		field.string = line;
+		field.source = line;
 		field.sig = { name:"", type:null, defaultValue:null, attributes:[] };
 		var out = [];
 		while (chars.length > 0) {
@@ -128,7 +129,7 @@ class GLSLParser
 		
 		strBuf = "";
 		var block = new GLSLBlock();
-		block.string = src;
+		block.source = src;
 		block.sig = { name:"", returnType:null, args:[]};
 		
 		for (i in 0...a.length) {
