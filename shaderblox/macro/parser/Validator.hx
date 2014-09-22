@@ -19,17 +19,15 @@ enum ShaderType {
 	COMP;
 	GEOM;
 }
-typedef GLSLValidationError = { line:Int, char:Int, type:String, msg:String }
+typedef GLSLValidationError = { line:Int, type:String, msg:String }
 class Validator
 {
-	public static var VALIDATOR_PATH:String = "validator.exe";
 	static public function validateLink(vertSrc:String, fragSrc:String):Array<GLSLValidationError> {
 		return [];
 	}
-	static public function validateShader(src:String, ?type:ShaderType):Array<GLSLValidationError> 
+	static public function validateShader(src:String, type:ShaderType):Array<GLSLValidationError> 
 	{
-		if (VALIDATOR_PATH == "") return [];
-		if (type == null) type = VERT;
+		if (Shaderblox.REFERENCE_COMPILER_PATH == "") return [];
 		if (src.length == 0 || src == null) throw "No shader source";
 		
 		//create a temp file and dump our shader source to it
@@ -37,7 +35,7 @@ class Validator
 		File.saveContent(fileName, src);
 		
 		//Run it through the validator and store the result
-		var p = new Process(VALIDATOR_PATH, [fileName]);
+		var p = new Process(Shaderblox.REFERENCE_COMPILER_PATH, [fileName]);
 		var data = p.stdout.readAll().toString();
 		
 		//Cleanup and return
@@ -70,10 +68,8 @@ class Validator
 				if (char == ":" || idx == l.length) {
 					buf = buf.trim();
 					switch(++tokenIdx) {
-						case 0:
-							lineIdx = buf.parseInt();
 						case 1:
-							charIdx = buf.parseInt();
+							lineIdx = buf.parseInt();
 						case 2:
 							typeString = buf;
 						case 3:
@@ -85,7 +81,7 @@ class Validator
 				}
 				buf += char;
 			}
-			out.push( { line:lineIdx, char:charIdx, type:typeString, msg:infoString } );
+			out.push( { line:lineIdx, type:typeString, msg:infoString } );
 		}
 		return out;
 	}

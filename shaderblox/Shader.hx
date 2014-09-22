@@ -8,6 +8,7 @@ import snow.render.opengl.GL;
  * ...
  * @author Andreas Rønning
  */
+@:allow(shaderblox.ShaderBase)
 class Shader
 {
 	public var uniformLocations:Map<String,Int>;
@@ -25,7 +26,7 @@ class Shader
 	
 	public var numReferences:Int;
 	public var name:String;
-	public function new() 
+	function new() 
 	{
 		attributes = [];
 	}
