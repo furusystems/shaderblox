@@ -6,9 +6,9 @@ import lime.graphics.opengl.GL;
 import falconer.utils.Matrix3D;
 import snow.render.opengl.GL;
 import lime.graphics.opengl.GLUniformLocation;
+#end
 
 using shaderblox.helpers.GLUniformLocationHelper;
-#end
 
 /**
  * Transposed Matrix3D uniform

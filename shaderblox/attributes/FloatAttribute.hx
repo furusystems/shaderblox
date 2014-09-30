@@ -1,9 +1,9 @@
 package shaderblox.attributes;
+
 #if snow
 import snow.render.opengl.GL;
 #elseif lime
 import lime.graphics.opengl.GL;
-
 #end
 
 /**

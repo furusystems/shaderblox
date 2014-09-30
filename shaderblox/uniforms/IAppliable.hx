@@ -1,6 +1,11 @@
 package shaderblox.uniforms;
 
+#if snow
+import snow.render.opengl.GL;
+#elseif lime
 import lime.graphics.opengl.GLUniformLocation;
+#end
+
 
 /**
  * All Uniforms are IAppliable.

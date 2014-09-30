@@ -5,9 +5,9 @@ import snow.render.opengl.GL;
 import lime.graphics.opengl.GL;
 import lime.graphics.opengl.GLUniformLocation;
 import lime.math.Vector2;
+#end
 
 using shaderblox.helpers.GLUniformLocationHelper;
-#end
 
 /**
  * Vector2 float uniform

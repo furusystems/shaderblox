@@ -7,11 +7,11 @@ import snow.render.opengl.GL;
 import lime.graphics.opengl.GL;
 import lime.utils.Matrix3D;
 import lime.graphics.opengl.GLUniformLocation;
-
-using shaderblox.helpers.GLUniformLocationHelper;
 #else
 throw "Requires lime or snow";
 #end
+
+using shaderblox.helpers.GLUniformLocationHelper;
 
 /**
  * Matrix3D uniform (not transposed)

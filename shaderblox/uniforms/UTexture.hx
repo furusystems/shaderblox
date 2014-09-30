@@ -5,9 +5,9 @@ import snow.render.opengl.GL;
 import lime.graphics.opengl.GL;
 import lime.graphics.opengl.GLTexture;
 import lime.graphics.opengl.GLUniformLocation;
+#end
 
 using shaderblox.helpers.GLUniformLocationHelper;
-#end
 
 /**
  * GLTexture uniform

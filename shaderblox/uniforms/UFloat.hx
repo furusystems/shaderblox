@@ -4,9 +4,9 @@ import snow.render.opengl.GL;
 #elseif lime
 import lime.graphics.opengl.GL;
 import lime.graphics.opengl.GLUniformLocation;
+#end
 
 using shaderblox.helpers.GLUniformLocationHelper;
-#end
 
 /**
  * Float uniform

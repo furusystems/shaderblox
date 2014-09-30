@@ -6,9 +6,9 @@ import falconer.utils.Vector3D;
 import lime.graphics.opengl.GL;
 import lime.math.Vector4;
 import lime.graphics.opengl.GLUniformLocation;
+#end
 
 using shaderblox.helpers.GLUniformLocationHelper;
-#end
 
 /**
  * Vector4 float uniform

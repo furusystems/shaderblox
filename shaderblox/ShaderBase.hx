@@ -6,12 +6,13 @@ import lime.graphics.opengl.GL;
 import lime.graphics.opengl.GLProgram;
 import lime.graphics.opengl.GLShader;
 import lime.graphics.opengl.GLUniformLocation;
-using shaderblox.helpers.GLUniformLocationHelper;
 #end
+
 import shaderblox.attributes.Attribute;
 import shaderblox.uniforms.IAppliable;
 import shaderblox.uniforms.UTexture;
 
+using shaderblox.helpers.GLUniformLocationHelper;
 /**
  * Base shader type. Extend this to define new shader objects.
  * Subclasses of ShaderBase must define shader source metadata. 
@@ -83,6 +84,7 @@ class ShaderBase
 		}
 		
 		var shaderProgram = GL.createProgram ();
+
 		GL.attachShader (shaderProgram, vertexShader);
 		GL.attachShader (shaderProgram, fragmentShader);
 		GL.linkProgram (shaderProgram);
