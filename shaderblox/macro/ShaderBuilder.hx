@@ -66,7 +66,7 @@ class ShaderBuilder
 		vertSource = '';
 		fragSource = '';
 
-		var defaultESPrecision = "\n#ifdef GL_ES\nprecision highp float;\n#endif\n";
+		var defaultESPrecision = "\n#ifdef GL_ES\nprecision mediump float;\n#endif\n";
 		vertSource += defaultESPrecision;
 		fragSource += defaultESPrecision;
 		

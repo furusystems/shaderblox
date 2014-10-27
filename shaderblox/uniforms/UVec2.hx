@@ -1,13 +1,27 @@
 package shaderblox.uniforms;
+
+using shaderblox.helpers.GLUniformLocationHelper;
+
 #if snow
 import snow.render.opengl.GL;
+class Vector2{
+	public var x:Float;
+	public var y:Float;
+	public function new(x:Float = 0, y:Float = 0){
+		this.x = x;
+		this.y = y;
+	}
+	public function set(x:Float, y:Float){
+		this.x = x;
+		this.y = y;
+	}
+}
 #elseif lime
 import lime.graphics.opengl.GL;
 import lime.graphics.opengl.GLUniformLocation;
 import lime.math.Vector2;
 #end
 
-using shaderblox.helpers.GLUniformLocationHelper;
 
 /**
  * Vector2 float uniform
