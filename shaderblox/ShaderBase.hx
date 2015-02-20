@@ -22,24 +22,26 @@ using shaderblox.helpers.GLUniformLocationHelper;
 
 @:autoBuild(shaderblox.macro.ShaderBuilder.build()) 
 class ShaderBase
-{	
-	public var prog:GLProgram;
-	public var active:Bool;
+{
+	//variables prepended with _ to avoid collisions with glsl variable names
 	var uniforms:Array<IAppliable>;
 	var attributes:Array<Attribute>;
-	public var textures:Array<UTexture>;
-	var aStride:Int;
-	var name:String;
-	var vert:GLShader;
-	var frag:GLShader;
-	var ready:Bool;
-	var numTextures:Int;
+	var textures:Array<UTexture>;
+
+	public var _prog(default, null):GLProgram;
+	public var _active(default, null):Bool;
+	var _name:String;
+	var _vert:GLShader;
+	var _frag:GLShader;
+	var _ready:Bool;
+	var _numTextures:Int;
+	var _aStride:Int;
 	
 	public function new() {
 		textures = [];
 		uniforms = [];
 		attributes = [];
-		name = ("" + Type.getClass(this)).split(".").pop();
+		_name = ("" + Type.getClass(this)).split(".").pop();
 		createProperties();
 	}
 	
@@ -49,13 +51,13 @@ class ShaderBase
 	
 	public function destroy():Void {
 		trace("Destroying " + this);
-		GL.deleteShader(vert);
-		GL.deleteShader(frag);
-		GL.deleteProgram(prog);
-		prog = null;
-		vert = null;
-		frag = null;
-		ready = false;
+		GL.deleteShader(_vert);
+		GL.deleteShader(_frag);
+		GL.deleteProgram(_prog);
+		_prog = null;
+		_vert = null;
+		_frag = null;
+		_ready = false;
 	}
 	
 	function initFromSource(vertSource:String, fragSource:String) {
@@ -108,20 +110,20 @@ class ShaderBase
 			attributeLocations[aInfo.name] = loc;
 		}
 		
-		vert = vertexShader;
-		frag = fragmentShader;
-		prog = shaderProgram;
+		_vert = vertexShader;
+		_frag = fragmentShader;
+		_prog = shaderProgram;
 		
 		//Validate uniform locations
 		var count = uniforms.length;
 		var removeList:Array<IAppliable> = [];
-		numTextures = 0;
+		_numTextures = 0;
 		textures = [];
 		for (u in uniforms) {
 			var loc = uniformLocations.get(u.name);
 			if (Std.is(u, UTexture)) {
 				var t:UTexture = cast u;
-				t.samplerIndex = numTextures++;
+				t.samplerIndex = _numTextures++;
 				textures[t.samplerIndex] = t;
 			}
 			if (loc.isValid()) {				
@@ -129,7 +131,7 @@ class ShaderBase
 				#if (debug && !display) trace("Defined uniform "+u.name+" at "+u.location); #end
 			}else {
 				removeList.push(u);
-				#if (debug && !display) trace("WARNING(" + name + "): unused uniform '" + u.name +"'"); #end
+				#if (debug && !display) trace("WARNING(" + _name + "): unused uniform '" + u.name +"'"); #end
 			}
 		}
 		while (removeList.length > 0) {
@@ -140,36 +142,36 @@ class ShaderBase
 		 * 1. Find every sampler/samplerCube uniform
 		 * 2. For each sampler, assign a sampler index from 0 and up
 		 * 3. Go through uniform locations, remove inactive samplers
-		 * 4. Pack remaining active sampler
+		 * 4. Pack remaining _active sampler
 		 */
 		
 		//Validate attribute locations
 		for (a in attributes) {
 			var loc = attributeLocations.get(a.name);
 			a.location = loc == null? -1:loc;
-			#if (debug && !display) if (a.location == -1) trace("WARNING(" + name + "): unused attribute '" + a.name +"'"); #end
+			#if (debug && !display) if (a.location == -1) trace("WARNING(" + _name + "): unused attribute '" + a.name +"'"); #end
 			#if (debug && !display) trace("Defined attribute "+a.name+" at "+a.location); #end
 		}
 	}
 	
 	public inline function activate(initUniforms:Bool = true, initAttribs:Bool = false):Void {
-		if (active) {
+		if (_active) {
 			if (initUniforms) setUniforms();
 			if (initAttribs) setAttributes();
 			return;
 		}
-		if (!ready) create();
-		GL.useProgram(prog);
+		if (!_ready) create();
+		GL.useProgram(_prog);
 		if (initUniforms) setUniforms();
 		if (initAttribs) setAttributes();
-		active = true;
+		_active = true;
 	}
 	
 	public function deactivate():Void {
-		if (!active) return;
-		active = false;
+		if (!_active) return;
+		_active = false;
 		disableAttributes();
-		// GL.useProgram(null);, seems to be fairly slow
+		// GL.useProgram(null);, seems to be fairly slow and we can get away without it
 	}
 	
 	public inline function setUniforms() {
@@ -184,7 +186,7 @@ class ShaderBase
 			var location = att.location;
 			if (location != -1) {
 				GL.enableVertexAttribArray(location);
-				GL.vertexAttribPointer (location, att.itemCount, att.type, false, aStride, offset);
+				GL.vertexAttribPointer (location, att.itemCount, att.type, false, _aStride, offset);
 			}
 			offset += att.byteSize;
 		}
@@ -197,6 +199,6 @@ class ShaderBase
 		}
 	}
 	public function toString():String {
-		return "[Shader(" + name+", attributes:" + attributes.length + ", uniforms:" + uniforms.length + ")]";
+		return "[Shader(" + _name+", attributes:" + attributes.length + ", uniforms:" + uniforms.length + ")]";
 	}
 }
