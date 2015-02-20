@@ -13,14 +13,14 @@ using Lambda;
  */
 private typedef FieldDef = {index:Null<Int>, typeName:String, fieldName:String, extrainfo:Dynamic };
 private typedef AttribDef = {index:Int, typeName:String, fieldName:String, itemCount:Int };
-private typedef GLSLGlobal = {?storageQualifier:String, ?precision:String, type:String, name:String, ?arraySize:Int, ?value:Dynamic};
+private typedef GLSLGlobal = {?storageQualifier:String, ?precision:String, type:String, name:String, ?arraySize:Int};
 class ShaderBuilder
 {
 	#if macro
 	
 	static var uniformFields:Array<FieldDef>;
 	static var attributeFields:Array<AttribDef>;
-	
+
 	static var vertSource:String;
 	static var fragSource:String;
 
@@ -175,7 +175,7 @@ class ShaderBuilder
 				doc: null,
 				meta: [],
 				access: [APublic],
-				kind: FProp("null","set",macro : Dynamic, macro $v{c.value}),
+				kind: FProp("null","set",macro : Dynamic, null),
 				pos: Context.currentPos()
 			}
 
@@ -505,15 +505,8 @@ class ShaderBuilder
     	           		precision: precision,
     	           		type: type,
     	           		name: rName.matched(1),
-    	           		arraySize: Std.parseInt(rName.matched(3)),
-    	           		value: null
+    	           		arraySize: Std.parseInt(rName.matched(3))
     	           	};
-
-    	           	//Evaluate glsl assignment expression as haxe code with a macro-in-macro approach
-    	           	if(rName.matched(5) != null){
-    	           		Eval.expr = Context.parse(rName.matched(5), Context.currentPos());
-    	           		global.value = Eval.eval();
-    	           	}
 
     	           	//validity checks
     	           	//if storageQualifier is 'const', arraySize must be null because const requires initialization and arrays cannot be initialized here
@@ -580,12 +573,3 @@ class ShaderBuilder
 	}
 	#end
 }
-
-class Eval { 
-    /* usage: 
-      Eval.expr = Context.parse("2 + 3", Context.currentPos()); 
-      var i:Int = Eval.eval(); 
-    */ 
-    public static var expr:Expr = null; /* its a luck that expr is shared while calling @:macro functions */ 
-    macro static public function eval() return expr;
-} 
