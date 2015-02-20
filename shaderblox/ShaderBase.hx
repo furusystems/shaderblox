@@ -24,9 +24,9 @@ using shaderblox.helpers.GLUniformLocationHelper;
 class ShaderBase
 {
 	//variables prepended with _ to avoid collisions with glsl variable names
-	var uniforms:Array<IAppliable>;
-	var attributes:Array<Attribute>;
-	var textures:Array<UTexture>;
+	var _uniforms:Array<IAppliable> = [];
+	var _attributes:Array<Attribute> = [];
+	var textures:Array<UTexture> = [];
 
 	public var _prog(default, null):GLProgram;
 	public var _active(default, null):Bool;
@@ -36,18 +36,21 @@ class ShaderBase
 	var _ready:Bool;
 	var _numTextures:Int;
 	var _aStride:Int;
-	
+
+	var _vertSource(get,null):String;
+	var _fragSource(get,null):String;
+
 	public function new() {
-		textures = [];
-		uniforms = [];
-		attributes = [];
 		_name = ("" + Type.getClass(this)).split(".").pop();
 		createProperties();
 	}
 	
 	private function createProperties():Void { }
 	
-	public function create():Void { }
+	public function create():Void{
+		compile(_vertSource, _fragSource);
+		_ready = true;
+	}
 	
 	public function destroy():Void {
 		trace("Destroying " + this);
@@ -59,8 +62,13 @@ class ShaderBase
 		_frag = null;
 		_ready = false;
 	}
+
+	public function recompile(){
+		destroy();
+		create();
+	}
 	
-	function initFromSource(vertSource:String, fragSource:String) {
+	function compile(vertSource:String, fragSource:String) {
 		var vertexShader = GL.createShader (GL.VERTEX_SHADER);
 		GL.shaderSource (vertexShader, vertSource);
 		GL.compileShader (vertexShader);
@@ -115,11 +123,11 @@ class ShaderBase
 		_prog = shaderProgram;
 		
 		//Validate uniform locations
-		var count = uniforms.length;
+		var count = _uniforms.length;
 		var removeList:Array<IAppliable> = [];
 		_numTextures = 0;
 		textures = [];
-		for (u in uniforms) {
+		for (u in _uniforms) {
 			var loc = uniformLocations.get(u.name);
 			if (Std.is(u, UTexture)) {
 				var t:UTexture = cast u;
@@ -135,7 +143,7 @@ class ShaderBase
 			}
 		}
 		while (removeList.length > 0) {
-			uniforms.remove(removeList.pop());
+			_uniforms.remove(removeList.pop());
 		}
 		//TODO: Graceful handling of unused sampler uniforms.
 		/**
@@ -146,7 +154,7 @@ class ShaderBase
 		 */
 		
 		//Validate attribute locations
-		for (a in attributes) {
+		for (a in _attributes) {
 			var loc = attributeLocations.get(a.name);
 			a.location = loc == null? -1:loc;
 			#if (debug && !display) if (a.location == -1) trace("WARNING(" + _name + "): unused attribute '" + a.name +"'"); #end
@@ -175,14 +183,14 @@ class ShaderBase
 	}
 	
 	public inline function setUniforms() {
-		for (u in uniforms) {
+		for (u in _uniforms) {
 			u.apply();
 		}
 	}
 	public inline function setAttributes() {
 		var offset:Int = 0;
-		for (i in 0...attributes.length) {
-			var att = attributes[i];
+		for (i in 0..._attributes.length) {
+			var att = _attributes[i];
 			var location = att.location;
 			if (location != -1) {
 				GL.enableVertexAttribArray(location);
@@ -192,13 +200,17 @@ class ShaderBase
 		}
 	}
 	function disableAttributes() {
-		for (i in 0...attributes.length) {
-			var idx = attributes[i].location;
+		for (i in 0..._attributes.length) {
+			var idx = _attributes[i].location;
 			if (idx == -1) continue;
 			GL.disableVertexAttribArray(idx);
 		}
 	}
+
+	function get__vertSource():String return "";
+	function get__fragSource():String return "";
+
 	public function toString():String {
-		return "[Shader(" + _name+", attributes:" + attributes.length + ", uniforms:" + uniforms.length + ")]";
+		return "[Shader(" + _name+", attributes:" + _attributes.length + ", uniforms:" + _uniforms.length + ")]";
 	}
 }

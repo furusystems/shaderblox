@@ -24,7 +24,7 @@ const must be different:
 	I think the nicest design is to extract the global consts, present them as class fields and swap out the values at runtime when they change
 	This requires runtime search and replace however, which is trickier than perpending the consts, but hopefully not too much tricker
 
-	The class fields should have getters and setters that trigger the rebuilt
+	The class fields should have getters and setters that trigger the recompile
 	
 	We'll need to be careful when defining fields incase they're already defined on a superclass
 
@@ -41,3 +41,5 @@ const must be different:
 shader base variables should be prepended with _ to prevent conflicts with glsl variables
 
 we should be able to get rid of buildOverrides
+
+pragma extracting could do with a do-over, it probably shouldn't be handling the work of including the source

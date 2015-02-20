@@ -3,6 +3,7 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Expr.Field;
 import haxe.macro.Type.ClassType;
+import haxe.macro.Type.ClassField;
 import haxe.macro.Type.Ref;
 import haxe.rtti.Meta;
 using Lambda;
@@ -20,9 +21,6 @@ class ShaderBuilder
 	
 	static var uniformFields:Array<FieldDef>;
 	static var attributeFields:Array<AttribDef>;
-
-	static var vertSource:String;
-	static var fragSource:String;
 
 	static inline var GL_FLOAT:Int = 0x1406;
 	static inline var GL_INT:Int = 0x1404;
@@ -57,33 +55,14 @@ class ShaderBuilder
 		uniformFields = [];
 		attributeFields = [];
 
-		var position = haxe.macro.Context.currentPos();
-		var fields = Context.getBuildFields();
-		var newFields:Array<Field> = [];
+		var position = Context.currentPos();
 
 		//get current class sources, taking care of overriding main()
 		var localSources:Array<String> = getSources(Context.getLocalClass().get());
 		var localVertSource = localSources[0];
 		var localFragSource = localSources[1];
-
-		// -- Add fields to class from local glsl --
-		//vert
-		if(localVertSource!=""){
-			buildConsts(position, newFields, localVertSource);
-			buildUniforms(position, newFields, localVertSource);
-			buildAttributes(position, newFields, localVertSource);
-		}else {
-			throw "No vert source";
-		}
-		//frag
-		if(localFragSource!=""){
-			buildConsts(position, newFields, localFragSource);
-			buildUniforms(position, newFields, localFragSource);
-		}else {
-			throw "No frag source";
-		}
 		
-		// -- Concatenate Sources --
+		// -- Process Sources --
 		#if debug
 		trace("Building " + Context.getLocalClass());
 		#end
@@ -135,9 +114,9 @@ class ShaderBuilder
 				s[1] = stripMain(s[1]);
 		}
 
-		//concatenate individual sources into one
-		vertSource = '';
-		fragSource = '';
+		// -- Assemble complete source --
+		var vertSource = "";
+		var fragSource = "";
 
 		var defaultESPrecision = "\n#ifdef GL_ES\nprecision mediump float;\n#endif\n";
 		vertSource += defaultESPrecision;
@@ -149,18 +128,72 @@ class ShaderBuilder
 			fragSource += "\n"+s[1]+"\n";
 		}
 
-		//override create() and createProperties() with some boilerplate #! can be removed
+		// -- Add assembled glsl strings to class as fields --
+		var fields = Context.getBuildFields();
+
+		buildSourceGetters(position, fields, vertSource, fragSource);
+
+		// -- Add fields to class from local glsl --
+		//vert
+		if(localVertSource!=""){
+			buildConsts(position, fields, localVertSource);
+			buildUniforms(position, fields, localVertSource);
+			buildAttributes(position, fields, localVertSource);
+		}else {
+			throw "No vert source";
+		}
+		//frag
+		if(localFragSource!=""){
+			buildConsts(position, fields, localFragSource);
+			buildUniforms(position, fields, localFragSource);
+		}else {
+			throw "No frag source";
+		}
+
+		//override create() and createProperties() with some boilerplate #! needs refactoring
 		buildOverrides(fields);
 
-		var finalFields = complete(newFields.concat(fields));
-		// var printer = new haxe.macro.Printer();
-		// for(f in fields){
-		// 	trace(printer.printField(f));
-		// }
-
+		var finalFields = buildFieldInitializers(fields);
 		return finalFields;
 	}
 	
+	static function buildSourceGetters(position, fields:Array<Field>, vertSource, fragSource){
+		var vertGetter = {
+			name: "get_"+"_vertSource",
+			doc: null,
+			meta: [],
+			access: [APrivate, AOverride],
+			kind: FFun({
+					args:[],
+					params:[],
+					ret: macro : String,
+					expr: macro{
+						return $v{vertSource};
+					}
+			}),
+			pos: Context.currentPos()
+		}
+
+		var fragGetter = {
+			name: "get_"+"_fragSource",
+			doc: null,
+			meta: [],
+			access: [APrivate, AOverride],
+			kind: FFun({
+					args:[],
+					params:[],
+					ret: macro : String,
+					expr: macro{
+						return $v{fragSource};
+					}
+			}),
+			pos: Context.currentPos()
+		}
+
+		fields.push(vertGetter);
+		fields.push(fragGetter);
+	}
+
 	static function buildConsts(position, fields, src){
 		var consts = extractGLSLGlobals(src, ['const']);
 		for(c in consts){
@@ -184,7 +217,7 @@ class ShaderBuilder
 				name: "set_"+c.name,
 				doc: null,
 				meta: [],
-				access: [APublic],
+				access: [APrivate],
 				kind: FFun({
 						args:[{
 								name: 'value',
@@ -223,21 +256,6 @@ class ShaderBuilder
 		var uniforms = extractGLSLGlobals(src, ['uniform']);
 		for(u in uniforms)
 			buildUniform(position, fields, u);
-	}
-	
-	static function checkIfFieldDefined(name:String):Bool {
-		var type:ClassType = Context.getLocalClass().get();
-		while (type != null) {
-			for (fld in type.fields.get()) {
-				if (fld.name == name) return true;
-			}
-			if (type.superClass != null) {
-				type = type.superClass.t.get();
-			}else {
-				type = null;
-			}
-		}
-		return false;
 	}
 	
 	static function buildAttribute(position, fields, attribute:GLSLGlobal):Void {
@@ -347,21 +365,7 @@ class ShaderBuilder
 		return lines.join("\n");
 	}
 
-	static function buildOverrides(fields:Array<Field>){
-		var expression = macro {
-			initFromSource($v { vertSource }, $v { fragSource } );
-			_ready = true;
-		}
-		var func = {
-			name : "create", 
-			doc : null, 
-			meta : [], 
-			access : [AOverride, APublic], 
-			kind : FFun({args:[], params:[], ret:null, expr:expression}),
-			pos : Context.currentPos() 
-		};
-		fields.push(func);
-		
+	static function buildOverrides(fields:Array<Field>){		
 		var func = {
 			name : "createProperties", 
 			doc : null, 
@@ -373,8 +377,7 @@ class ShaderBuilder
 		fields.push(func);
 	}
 	
-	static function complete(allFields:Array<Field>){
-		var constructorFound:Bool = false;
+	static function buildFieldInitializers(allFields:Array<Field>){
 		for (f in allFields) {
 			switch(f.name) {
 				case "createProperties":
@@ -392,7 +395,7 @@ class ShaderBuilder
 												macro {
 													var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName }, $v { uni.index }, $v { uni.extrainfo } ]);
 													Reflect.setField(this, $v { name }, instance);
-													uniforms.push(instance);
+													_uniforms.push(instance);
 												}
 											);
 										}else {
@@ -400,7 +403,7 @@ class ShaderBuilder
 												macro {
 													var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName}, $v { uni.index } ]);
 													Reflect.setField(this, $v { name }, instance);
-													uniforms.push(instance);
+													_uniforms.push(instance);
 												}
 											);
 										}
@@ -414,7 +417,7 @@ class ShaderBuilder
 											macro {
 												var instance = Type.createInstance( Type.resolveClass( $v { att.typeName } ), [$v { att.fieldName }, $v { att.index }, $v { numItems } ]);
 												Reflect.setField(this, $v { name }, instance);
-												attributes.push(instance);
+												_attributes.push(instance);
 											}
 										);
 									}
@@ -433,6 +436,22 @@ class ShaderBuilder
 		uniformFields = null;
 		attributeFields = null;
 		return allFields;
+	}
+
+	//Macro Tools
+	static function getClassField(name:String):ClassField{
+		var type:ClassType = Context.getLocalClass().get();
+		while(type != null){
+			for(f in type.fields.get())
+				if(f.name == name) return f;
+			//try superclass
+			type = type.superClass != null ? type.superClass.t.get() : null;
+		}
+		return null;
+	}
+	
+	static function checkIfFieldDefined(name:String):Bool {
+		return getClassField(name) != null;
 	}
 
 	public static function getFileContent( fileName : Expr ) {
