@@ -7,42 +7,6 @@ using Lambda;
 typedef GLSLGlobal = {?storageQualifier:String, ?precision:String, type:String, name:String, ?arraySize:Int};
 
 
-interface INode<T>{
-    public var contents:T;
-    public function toString():String;
-}
-
-class StringNode implements INode<String>{
-    public var contents:String;
-    public function new(str:String = "")
-        this.contents = str;
-
-    public function toString()
-        return contents;
-}
-
-class ScopeNode implements INode<Array<INode<Dynamic>>>{
-    public var contents:Array<INode<Dynamic>>;
-    public var openBracket = "";
-    public var closeBracket = "";
-    public function new(?brackets:String){
-        this.contents = new Array<INode<Dynamic>>();
-        if(brackets != null){
-            this.openBracket = brackets.charAt(0);
-            this.closeBracket = brackets.charAt(1);
-        }
-    }
-
-    public inline function push(v:INode<Dynamic>) return contents.push(v);
-    public function toString(){
-        var str:String = openBracket;
-        for(n in contents)
-            str += n.toString();
-        return str + closeBracket;
-    }
-}
-
-
 //fairly primitive glsl parsing with regex
 class GLSLTools {
 	static var PRECISION_QUALIFIERS = ['lowp', 'mediump', 'highp'];
@@ -55,43 +19,62 @@ class GLSLTools {
  		'varying'   => ['float','vec2','vec3','vec4','mat2','mat3','mat4']
  	];
 
- 	// typedef CharacterRange = {
- 	// 	var start:Int;
- 	// 	var end:Int;
- 	// }
- 	//locateGlobal(src, {storageQualifier: 'const', type: 'int', name: 'PIXEL_SIZE'})
- 	// static public function locateGlobal(src:String, global:GLSLGlobal):CharacterRange{
- 	// 	if(global.storageQualifier == null) return null;
-
- 	// 	var storageQualifier = global.storageQualifier;
- 	// 	var types = [global.type];
-
-  //   	var reg = new EReg(storageQualifier+'\\s+(('+PRECISION_QUALIFIERS.join('|')+')\\s+)?('+types.join('|')+')\\s+([^;]+)', 'gm');
-
-		// return {start: 0, end: 0};
- 	// }
-
-    static function scopeExplode(src, openBracket:String, rightBracket:String, ?maxDepth:Int){
-
-    }
-
- 	//:todo: value should later be ConstType and have function toGLSL():String
+ 	//:todo: value should be ConstType and have function toGLSL():String
  	static public function injectConstValue(src:String, name:String, value:Dynamic){
  		var storageQualifier = 'const';
  		var types = STORAGE_QUALIFIER_TYPES[storageQualifier];
 
     	var reg = new EReg(storageQualifier+'\\s+(('+PRECISION_QUALIFIERS.join('|')+')\\s+)?('+types.join('|')+')\\s+([^;]+)', 'gm');
 
-    	if(!reg.match(src)) return false;
-    	var definitionPos = reg.matchedPos();
-    	trace(definitionPos);
+        var str = stripComments(src);
+    	while(reg.match(src)){
+        	var definitionPos = reg.matchedPos();
+        	trace(definitionPos);
 
-    	var rawNamesStr = reg.matched(4);
+        	var rawNamesStr = reg.matched(4);
 
-        //#! need to scope string to ignore commas in more complex types
+            var rConstName = new EReg('\\s*('+name+')\\s*=', 'igm');//here initializer is required and there are no square brackets
+            //rawNameStr is exploded by brackets so that ',' contained within are ignored
+            var exploded = bracketExplode(rawNamesStr, "()");
+           /* for(i in 0...exploded.contents.length){
+                var n = exploded.contents[i];
+                if(Std.is(n, StringNode)){
 
-    	//find name in rawNamesStr
-    	return true;
+                    if(rConstName.match(n.toString())){ //check if current string matches const name pattern
+
+                        //#! once a match has been found, we need to find the end of the initialization expression
+                        //find initialization expression length
+                        var terminatorLength = 0;
+                        var terminatorFound = false;
+                        for(j in i...exploded.contents.length){
+                            var m = exploded.contents[j];
+                            if(Std.is(m, StringNode)){
+                                //#! search string for ,
+                                if(m.toString().indexOf(',')==-1){
+                                    //add index to terminator length
+                                    terminatorFound = true;
+                                    break;
+                                }
+                            }else{
+                                //add node's string-length to length of initialization expression
+
+                            }
+                        }
+                        if(!terminatorFound){
+                            //terminator is total length
+                        }
+
+                    }
+
+                }
+            }*/
+
+            //compress the layer and to a local-global-like transform to convert the compressed string position to the true position
+
+            str = reg.matchedRight();    
+        }
+
+    	return false;
  	}
 
 
@@ -196,4 +179,79 @@ class GLSLTools {
 
     }
 
+    static function bracketExplode(src, brackets:String /* eg: "{}" */){
+        if(brackets.length != 2) return null;
+
+        var open = brackets.charAt(0), close = brackets.charAt(1);
+
+        var root = new ScopeNode();
+        //scope source
+        var scopeStack = new Array<ScopeNode>();
+        var currentScope = root;
+        var currentNode:INode<Dynamic> = null;
+        var c, level = 0;
+        for(i in 0...src.length){
+            c = src.charAt(i);
+            if(c==open){
+                level++;
+                var newScope = new ScopeNode(brackets);
+                currentScope.push(newScope);
+                
+                scopeStack.push(currentScope);             
+                currentScope = newScope;
+                
+                currentNode = currentScope;
+            }else if(c==close){
+                level--;
+                currentScope = scopeStack.pop();                
+                currentNode = currentScope;
+            }else{
+                if(!Std.is(currentNode, StringNode)){
+                    currentNode = new StringNode();
+                    currentScope.push(currentNode);
+                }
+                
+                cast(currentNode, StringNode).contents += c;
+            }
+        }
+                    
+        return root;
+    }
+
+}
+
+private interface INode<T>{
+    public var contents:T;
+    public function toString():String;
+}
+
+private class StringNode implements INode<String>{
+    public var contents:String;
+    public function new(str:String = "")
+        this.contents = str;
+
+    public function toString()
+        return contents;
+}
+
+private class ScopeNode implements INode<Array<INode<Dynamic>>>{
+    public var contents:Array<INode<Dynamic>>;
+    public var openBracket = "";
+    public var closeBracket = "";
+    public function new(?brackets:String){
+        this.contents = new Array<INode<Dynamic>>();
+        if(brackets != null){
+            this.openBracket = brackets.charAt(0);
+            this.closeBracket = brackets.charAt(1);
+        }
+    }
+
+    public inline function push(v:INode<Dynamic>) return contents.push(v);
+
+    public function toString(){
+        var str:String = openBracket;
+        for(n in contents)
+            str += n.toString();
+        return str + closeBracket;
+    }
 }
