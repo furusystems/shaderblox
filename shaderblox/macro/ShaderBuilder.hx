@@ -3,9 +3,12 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Expr.Field;
 import haxe.macro.Type.ClassType;
-import haxe.macro.Type.ClassField;
-import haxe.macro.Type.Ref;
 import haxe.rtti.Meta;
+
+import shaderblox.macro.MacroTools;
+import shaderblox.glsl.GLSLTools;
+import shaderblox.glsl.GLSLTools.GLSLGlobal;
+
 using Lambda;
 
 /**
@@ -14,7 +17,6 @@ using Lambda;
  */
 private typedef FieldDef = {index:Null<Int>, typeName:String, fieldName:String, extrainfo:Dynamic };
 private typedef AttribDef = {index:Int, typeName:String, fieldName:String, itemCount:Int };
-private typedef GLSLGlobal = {?storageQualifier:String, ?precision:String, type:String, name:String, ?arraySize:Int};
 class ShaderBuilder
 {
 	#if macro
@@ -32,12 +34,12 @@ class ShaderBuilder
 		for (i in meta.array()) {
 			switch(i.name) {
 				case ":vert":
-					str = getString(i.params[0]);
-					str = pragmas(unifyLineEndings(str));
+					str = MacroTools.getString(i.params[0]);
+					str = pragmas(GLSLTools.unifyLineEndings(str));
 					out[0] = str;
 				case ":frag":
-					str = getString(i.params[0]);
-					str = pragmas(unifyLineEndings(str));
+					str = MacroTools.getString(i.params[0]);
+					str = pragmas(GLSLTools.unifyLineEndings(str));
 					out[1] = str;
 			}
 		}
@@ -88,8 +90,8 @@ class ShaderBuilder
 			var s = sources[i];
 			if(s[0]==null)s[0]="";
 			if(s[1]==null)s[1]="";
-			s[0] = stripComments(s[0]);
-			s[1] = stripComments(s[1]);
+			s[0] = GLSLTools.stripComments(s[0]);
+			s[1] = GLSLTools.stripComments(s[1]);
 		}
 
 		//find highest level class with main
@@ -97,10 +99,10 @@ class ShaderBuilder
 		var highestMainFrag:Int = -1;
 		for (i in 0...sources.length) {
 			var s = sources[i];
-			if(hasMain(s[0]))
+			if(GLSLTools.hasMain(s[0]))
 				highestMainVert = i;
 
-			if(hasMain(s[1]))
+			if(GLSLTools.hasMain(s[1]))
 				highestMainFrag = i;
 		}
 
@@ -109,9 +111,9 @@ class ShaderBuilder
 			var s = sources[i];
 
 			if(i<highestMainVert)
-				s[0] = stripMain(s[0]);
+				s[0] = GLSLTools.stripMain(s[0]);
 			if(i<highestMainFrag)
-				s[1] = stripMain(s[1]);
+				s[1] = GLSLTools.stripMain(s[1]);
 		}
 
 		// -- Assemble complete source --
@@ -195,7 +197,7 @@ class ShaderBuilder
 	}
 
 	static function buildConsts(position, fields, src){
-		var consts = extractGLSLGlobals(src, ['const']);
+		var consts = GLSLTools.extractGlobals(src, ['const']);
 		for(c in consts){
 			//create const field
 			//when field changes, the shader should update const value and recompile 
@@ -227,7 +229,7 @@ class ShaderBuilder
 						}],
 						params:[],
 						ret: null,
-						expr: macro{
+						expr: macro {
 							trace("hey, set works");
 							Reflect.setField(this, $v{c.name}, value);
 							return value;
@@ -247,20 +249,20 @@ class ShaderBuilder
 	}
 
 	static function buildAttributes(position, fields:Array<Field>, src:String) {
-		var attributes = extractGLSLGlobals(src, ['attribute']);
+		var attributes = GLSLTools.extractGlobals(src, ['attribute']);
 		for(a in attributes)
 			buildAttribute(position, fields, a);
 	}
 
 	static function buildUniforms(position, fields:Array<Field>, src:String) {
-		var uniforms = extractGLSLGlobals(src, ['uniform']);
+		var uniforms = GLSLTools.extractGlobals(src, ['uniform']);
 		for(u in uniforms)
 			buildUniform(position, fields, u);
 	}
 	
 	static function buildAttribute(position, fields, attribute:GLSLGlobal):Void {
 		//Avoid field redefinitions
-		if (checkIfFieldDefined(attribute.name)) return;
+		if (MacroTools.checkIfFieldDefined(attribute.name)) return;
 		
 		for (existing in attributeFields) {
 			if (existing.fieldName == attribute.name) return; 
@@ -305,7 +307,7 @@ class ShaderBuilder
 	}
 
 	static function buildUniform(position, fields, uniform:GLSLGlobal) {
-		if (checkIfFieldDefined(uniform.name)) return;
+		if (MacroTools.checkIfFieldDefined(uniform.name)) return;
 		
 		for (existing in uniformFields) {
 			if (existing.fieldName == uniform.name) return; 
@@ -438,157 +440,5 @@ class ShaderBuilder
 		return allFields;
 	}
 
-	//Macro Tools
-	static function getClassField(name:String):ClassField{
-		var type:ClassType = Context.getLocalClass().get();
-		while(type != null){
-			for(f in type.fields.get())
-				if(f.name == name) return f;
-			//try superclass
-			type = type.superClass != null ? type.superClass.t.get() : null;
-		}
-		return null;
-	}
-	
-	static function checkIfFieldDefined(name:String):Bool {
-		return getClassField(name) != null;
-	}
-
-	public static function getFileContent( fileName : Expr ) {
-        var fileStr = null;
-        switch( fileName.expr ) {
-        	case EConst(c):
-            	switch( c ) {
-            		case CString(s): fileStr = s;
-            		default:
-            	}
-        	default:
-        };
-        if( fileStr == null ) Context.error("Constant string expected", fileName.pos);
-        return Context.makeExpr(sys.io.File.getContent(fileStr),fileName.pos);
-    }
-
-    static function getString(e:Expr):String {
-    	switch( e.expr ) {
-    		case EConst(c):
-    			switch( c ) {
-    				case CString(s): return s;
-    				case _:
-    			}
-    		case EField(e, f):	
-    		case _:
-    	}
-    	throw("No const");
-    }
-
-    //GLSLSourceTools
-    //:TODO: doesn't currently exclude non-global scope which might be an issue for complex shaders with many consts embedded
-    static function extractGLSLGlobals(src:String, ?storageQualifiers:Array<String>):Array<GLSLGlobal>{
-    	if(storageQualifiers == null)
-    		storageQualifiers = ['const', 'attribute', 'uniform', 'varying'];
-
-    	if(src == null) return [];
-
-    	var allowedTypes = new Map<String, Array<String>>();
-    	allowedTypes['const']     = ['bool','int','float','vec2','vec3','vec4','bvec2','bvec3','bvec4','ivec2','ivec3','ivec4','mat2','mat3','mat4'];
-    	allowedTypes['attribute'] = ['float','vec2','vec3','vec4','mat2','mat3','mat4'];
-    	allowedTypes['uniform']   = ['bool','int','float','vec2','vec3','vec4','bvec2','bvec3','bvec4','ivec2','ivec3','ivec4','mat2','mat3','mat4','sampler2D','samplerCube'];
-    	allowedTypes['varying']   = ['float','vec2','vec3','vec4','mat2','mat3','mat4'];
-
-    	var str = stripComments(src);
-
-    	var globals = new Array<GLSLGlobal>();
-
-    	for (storageQualifier in storageQualifiers) {
-    		var types = allowedTypes[storageQualifier];
-
-    		//format: (precision)? (type) (name1 (= (value))?, name2 (= (value))?);
-    		var reg = new EReg(storageQualifier+'\\s+((lowp|mediump|highp)\\s+)?('+types.join('|')+')\\s+([^;]+)', 'gm');//we must double escape characters in this format
-    		
-    		while(reg.match(str)){
-    	        var precision = reg.matched(2);
-    	        var type = reg.matched(3);
-    	        var rawNamesStr = reg.matched(4);
-
-    	        //Extract comma separated names and array sizes (ie light1, light2 and name[size])
-    	        //	also evaluate any initialization expressions (ie strength = 2.3)
-    	        //	there is no mechanism for initializing arrays at declaration time from within a shader
-
-    	        //format: (name) ([arraySize])? = (expression), ...
-    	        var rName = ~/^\s*([\w\d_]+)\s*(\[(\d*)\])?\s*(=\s*(.+))?$/igm;
-    	        for(rawName in rawNamesStr.split(',')){
-    				if(!rName.match(rawName)) continue;//name does not conform
-
-    	           	var global = {
-    	           		storageQualifier: storageQualifier,
-    	           		precision: precision,
-    	           		type: type,
-    	           		name: rName.matched(1),
-    	           		arraySize: Std.parseInt(rName.matched(3))
-    	           	};
-
-    	           	//validity checks
-    	           	//if storageQualifier is 'const', arraySize must be null because const requires initialization and arrays cannot be initialized here
-    	           	//for all other storageQualifiers value must be null because these cannot be initialized
-
-    	            globals.push(global);
-    	        }
-
-    	        str = reg.matchedRight();
-    	    }
-
-    	}
-
-        return globals;
-    }
-
-    static function GLSLGlobalToString(g:GLSLGlobal):String{
-    	return	(g.storageQualifier != null ? g.storageQualifier : '')+' '+
-    			(g.precision != null ? g.precision : '')+' '+
-    			g.type+' '+
-    			g.name+
-    			(g.arraySize != null ? '['+g.arraySize+']' : '')+';';
-
-    }
-
-	static function unifyLineEndings(src:String):String {
-		return StringTools.trim(src.split("\r").join("\n").split("\n\n").join("\n"));
-	}
-
-	static function stripComments(src:String):String {
-		return (~/(?:\/\*(?:[\s\S]*?)\*\/)|(?:\/\/(?:.*)$)/igm).replace(src, '');//#1 = block comments, #2 = line comments
-	}
-
- 	static var mainReg = (~/(?:\s|^)(?:(lowp|mediump|highp)\s+)?(void)\s+([main]+)\s*\([^\)]*\)\s*\{/gm);
-	static function hasMain(src:String):Bool{
-		if(src == null)return false;
-		var str = stripComments(src);
-		return mainReg.match(str);
-	}
-
-	static function stripMain(src:String):String {
-		if(src == null)return null;
-		var str = src;
-		var reg = mainReg;
-        
-        var matched = reg.match(str);
-        if(!matched)return str;
-        
-        var remainingStr = reg.matchedRight();
-        
-        var mainEnd:Int = 0;
-        //find closing bracket
-        var open = 1;
-        for(i in 0...remainingStr.length){
-            var c = remainingStr.charAt(i);
-            if(c=="{")open++;else if(c=="}")open--;
-        	if(open==0){
-                mainEnd = i+1;
-                break;
-            }
-        }
-
-		return reg.matchedLeft()+remainingStr.substring(mainEnd, remainingStr.length);
-	}
 	#end
 }

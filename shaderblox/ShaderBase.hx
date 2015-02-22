@@ -26,7 +26,7 @@ class ShaderBase
 	//variables prepended with _ to avoid collisions with glsl variable names
 	var _uniforms:Array<IAppliable> = [];
 	var _attributes:Array<Attribute> = [];
-	var textures:Array<UTexture> = [];
+	var _textures:Array<UTexture> = [];
 
 	public var _prog(default, null):GLProgram;
 	public var _active(default, null):Bool;
@@ -37,8 +37,8 @@ class ShaderBase
 	var _numTextures:Int;
 	var _aStride:Int;
 
-	var _vertSource(get,null):String;
-	var _fragSource(get,null):String;
+	public var _vertSource(get,null):String;
+	public var _fragSource(get,null):String;
 
 	public function new() {
 		_name = ("" + Type.getClass(this)).split(".").pop();
@@ -126,13 +126,13 @@ class ShaderBase
 		var count = _uniforms.length;
 		var removeList:Array<IAppliable> = [];
 		_numTextures = 0;
-		textures = [];
+		_textures = [];
 		for (u in _uniforms) {
 			var loc = uniformLocations.get(u.name);
 			if (Std.is(u, UTexture)) {
 				var t:UTexture = cast u;
 				t.samplerIndex = _numTextures++;
-				textures[t.samplerIndex] = t;
+				_textures[t.samplerIndex] = t;
 			}
 			if (loc.isValid()) {				
 				u.location = loc;
