@@ -10,7 +10,7 @@ typedef GLSLGlobal = {?storageQualifier:String, ?precision:String, type:String, 
 //fairly primitive glsl parsing with regex
 class GLSLTools {
 	static var PRECISION_QUALIFIERS = ['lowp', 'mediump', 'highp'];
- 	static var MAIN_FUNC_REGEX = new EReg('(?:\\s|^)(?:('+PRECISION_QUALIFIERS.join('|')+')\\s+)?(void)\\s+(main)\\s*\\([^\\)]*\\)\\s*\\{', 'gm');
+ 	static var MAIN_FUNC_REGEX = new EReg('(?:\\s|^)(?:('+PRECISION_QUALIFIERS.join('|')+')\\s+)?(void)\\s+(main)\\s*\\([^\\)]*\\)\\s*\\{', 'm');
  	static var STORAGE_QUALIFIERS = ['const', 'attribute', 'uniform', 'varying'];
  	static var STORAGE_QUALIFIER_TYPES = [
  		'const'     => ['bool','int','float','vec2','vec3','vec4','bvec2','bvec3','bvec4','ivec2','ivec3','ivec4','mat2','mat3','mat4'],
@@ -20,62 +20,88 @@ class GLSLTools {
  	];
 
  	//:todo: value should be ConstType and have function toGLSL():String
- 	static public function injectConstValue(src:String, name:String, value:Dynamic){
+    //:todo: should only consider global scope
+ 	static public function injectConstValue(src:String, name:String, value:String){
  		var storageQualifier = 'const';
  		var types = STORAGE_QUALIFIER_TYPES[storageQualifier];
 
-    	var reg = new EReg(storageQualifier+'\\s+(('+PRECISION_QUALIFIERS.join('|')+')\\s+)?('+types.join('|')+')\\s+([^;]+)', 'gm');
+    	var reg = new EReg(storageQualifier+'\\s+(('+PRECISION_QUALIFIERS.join('|')+')\\s+)?('+types.join('|')+')\\s+([^;]+)', 'm');
 
-        var str = stripComments(src);
-    	while(reg.match(src)){
+        var src = stripComments(src);
+
+        var currStr = src;
+        //determine const position and length
+    	while(reg.match(currStr)){
         	var definitionPos = reg.matchedPos();
-        	trace(definitionPos);
 
-        	var rawNamesStr = reg.matched(4);
+        	var rawDeclarationString = reg.matched(0);
 
-            var rConstName = new EReg('\\s*('+name+')\\s*=', 'igm');//here initializer is required and there are no square brackets
-            //rawNameStr is exploded by brackets so that ',' contained within are ignored
-            var exploded = bracketExplode(rawNamesStr, "()");
-           /* for(i in 0...exploded.contents.length){
-                var n = exploded.contents[i];
-                if(Std.is(n, StringNode)){
+            //Search rawDeclarationString
+            //rawDeclarationString is exploded by brackets so that ',' contained within can be ignored
+            var exploded = bracketExplode(rawDeclarationString, "()");
 
-                    if(rConstName.match(n.toString())){ //check if current string matches const name pattern
+            //concatenate just the root scope of the raw name string
+            var rootScopeStr = exploded.contents.fold(function (n, rs)
+                return rs + (Std.is(n, StringNode) ? n.toString() : "")
+            , "");
 
-                        //#! once a match has been found, we need to find the end of the initialization expression
-                        //find initialization expression length
-                        var terminatorLength = 0;
-                        var terminatorFound = false;
-                        for(j in i...exploded.contents.length){
-                            var m = exploded.contents[j];
-                            if(Std.is(m, StringNode)){
-                                //#! search string for ,
-                                if(m.toString().indexOf(',')==-1){
-                                    //add index to terminator length
-                                    terminatorFound = true;
-                                    break;
-                                }
-                            }else{
-                                //add node's string-length to length of initialization expression
+            //try to locate const with supplied name
+            //(name) =
+            var rConstName = new EReg('\\b('+name+')\\b\\s*=', 'm');//here initializer is required and there are no square brackets
 
-                            }
-                        }
-                        if(!terminatorFound){
-                            //terminator is total length
-                        }
-
-                    }
-
+            var nameFound = rConstName.match(rootScopeStr);
+            if(nameFound){
+                var namePos = rConstName.matchedPos();
+                //determine the length of the initializer
+                var initializerLength = 0;
+                if((initializerLength = rConstName.matchedRight().indexOf(',')) == -1){
+                    initializerLength = rConstName.matchedRight().length;
                 }
-            }*/
+                //initializer range in compressed coordinates (concatenated root scope of rawDeclarationString)
+                var initializerRangeInRootStr = {
+                    start: namePos.pos+namePos.len,
+                    end: namePos.pos+namePos.len+initializerLength
+                }
+                //convert 'compressed' coordinates into exploded (ie, taking into account ignored scopes)
+                //then add on the position of the 
+                var absoluteOffset = src.length - currStr.length + definitionPos.pos;
+                var initializerRangeAbsolute = {
+                    start: compressedToExploded(exploded, initializerRangeInRootStr.start) + absoluteOffset,
+                    end: compressedToExploded(exploded, initializerRangeInRootStr.end) + absoluteOffset
+                }
 
-            //compress the layer and to a local-global-like transform to convert the compressed string position to the true position
-
-            str = reg.matchedRight();    
+                //replace initializer in str
+                var srcBefore = src.substring(0, initializerRangeAbsolute.start);
+                var srcAfter = src.substring(initializerRangeAbsolute.end);
+                return srcBefore+value+srcAfter;
+            }
+            //next global declaration
+            currStr = reg.matchedRight();    
         }
 
-    	return false;
+        //failed to find const
+    	return null;
  	}
+
+    static function compressedToExploded(scope:ScopeNode, compressedPosition:Int){
+        var CC = compressedPosition;
+        var stringTotal = 0;
+        var nodeTotal = 0;
+        var targetIndex:Null<Int> = null;
+        for (i in 0 ... scope.contents.length) {
+            var n = scope.contents[i];
+            var len = n.toString().length;
+            if(Std.is(n, StringNode)){
+                if(stringTotal+len > CC){
+                    targetIndex = i;
+                    break;
+                }
+                stringTotal += len;
+            }
+            nodeTotal += len;
+        }
+        return (CC - stringTotal) + nodeTotal;
+    }
 
 
     static public function extractGlobals(src:String, ?storageQualifiers:Array<String>):Array<GLSLGlobal>{
@@ -92,7 +118,7 @@ class GLSLTools {
     		var types = STORAGE_QUALIFIER_TYPES[storageQualifier];
 
     		//format: (precision)? (type) (name1 (= (value))?, name2 (= (value))?);
-    		var reg = new EReg(storageQualifier+'\\s+(('+PRECISION_QUALIFIERS.join('|')+')\\s+)?('+types.join('|')+')\\s+([^;]+)', 'gm');
+    		var reg = new EReg(storageQualifier+'\\s+(('+PRECISION_QUALIFIERS.join('|')+')\\s+)?('+types.join('|')+')\\s+([^;]+)', 'm');
     		
     		while(reg.match(str)){
     	        var precision = reg.matched(2);
@@ -104,7 +130,7 @@ class GLSLTools {
     	        //	there is no mechanism for initializing arrays at declaration time from within a shader
 
     	        //format: (name) ([arraySize])? = (expression), ...
-    	        var rName = ~/^\s*([\w\d_]+)\s*(\[(\d*)\])?\s*(=\s*(.+))?$/igm;
+    	        var rName = ~/^\s*([\w\d_]+)\s*(\[(\d*)\])?\s*(=\s*(.+))?$/im;
     	        for(rawName in rawNamesStr.split(',')){
     				if(!rName.match(rawName)) continue;//name does not conform
 
@@ -179,6 +205,8 @@ class GLSLTools {
 
     }
 
+
+    //:todo: support multiple sets of brackets (eg: '(){}[]')
     static function bracketExplode(src, brackets:String /* eg: "{}" */){
         if(brackets.length != 2) return null;
 

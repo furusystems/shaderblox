@@ -1,6 +1,12 @@
 [GLSL Language Spec](http://www.khronos.org/files/opengles_shading_language.pdf)
 
-- maybe rename superclass main to super()?
+Future:
+
+- Const should have haxe-based type
+- basic parsing into something similar to an AST by extending bracketExplode.
+- the AST is used to produce a glsl string on demand and makes for easier, more robust source modifications
+
+- maybe rename superclass main to super(), and others super.func_name?
 	so we can do 
 	void main(){
 		super();
@@ -38,8 +44,6 @@ const must be different:
 	Later: Should we override new to pass constants as the argument? 
 
 
-shader base variables should be prepended with _ to prevent conflicts with glsl variables
-
-we should be able to get rid of buildOverrides
+[DONE]shader base variables should be prepended with _ to prevent conflicts with glsl variables
 
 pragma extracting could do with a do-over, it probably shouldn't be handling the work of including the source

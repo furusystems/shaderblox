@@ -37,15 +37,18 @@ class ShaderBase
 	var _numTextures:Int;
 	var _aStride:Int;
 
-	public var _vertSource(get,null):String;
-	public var _fragSource(get,null):String;
+	public var _vertSource(default, null):String;
+	public var _fragSource(default, null):String;
 
 	public function new() {
 		_name = ("" + Type.getClass(this)).split(".").pop();
+		initSources();
 		createProperties();
 	}
 	
-	private function createProperties():Void { }
+	private function initSources():Void {}
+
+	private function createProperties():Void {}
 	
 	public function create():Void{
 		compile(_vertSource, _fragSource);
@@ -206,9 +209,6 @@ class ShaderBase
 			GL.disableVertexAttribArray(idx);
 		}
 	}
-
-	function get__vertSource():String return "";
-	function get__fragSource():String return "";
 
 	public function toString():String {
 		return "[Shader(" + _name+", attributes:" + _attributes.length + ", uniforms:" + _uniforms.length + ")]";

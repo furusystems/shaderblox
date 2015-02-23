@@ -17,12 +17,18 @@ using Lambda;
  */
 private typedef FieldDef = {index:Null<Int>, typeName:String, fieldName:String, extrainfo:Dynamic };
 private typedef AttribDef = {index:Int, typeName:String, fieldName:String, itemCount:Int };
+private enum SourceKind{
+	Frag;
+	Vert;
+}
 class ShaderBuilder
 {
 	#if macro
 	
 	static var uniformFields:Array<FieldDef>;
-	static var attributeFields:Array<AttribDef>;
+	static var attributeFields:Array<AttribDef>;	
+	static var vertSource = "";
+	static var fragSource = "";
 
 	static inline var GL_FLOAT:Int = 0x1406;
 	static inline var GL_INT:Int = 0x1404;
@@ -117,8 +123,8 @@ class ShaderBuilder
 		}
 
 		// -- Assemble complete source --
-		var vertSource = "";
-		var fragSource = "";
+		vertSource = "";
+		fragSource = "";
 
 		var defaultESPrecision = "\n#ifdef GL_ES\nprecision mediump float;\n#endif\n";
 		vertSource += defaultESPrecision;
@@ -133,131 +139,36 @@ class ShaderBuilder
 		// -- Add assembled glsl strings to class as fields --
 		var fields = Context.getBuildFields();
 
-		buildSourceGetters(position, fields, vertSource, fragSource);
-
 		// -- Add fields to class from local glsl --
-		//vert
-		if(localVertSource!=""){
-			buildConsts(position, fields, localVertSource);
-			buildUniforms(position, fields, localVertSource);
-			buildAttributes(position, fields, localVertSource);
-		}else {
-			throw "No vert source";
-		}
-		//frag
-		if(localFragSource!=""){
-			buildConsts(position, fields, localFragSource);
-			buildUniforms(position, fields, localFragSource);
-		}else {
-			throw "No frag source";
-		}
+		buildAttributes(position, fields, localVertSource);
+		buildUniforms(position, fields, localVertSource, localFragSource);
+		buildConsts(position, fields, localVertSource, localFragSource);
 
-		//override create() and createProperties() with some boilerplate #! needs refactoring
+		//override initSources() and createProperties()
 		buildOverrides(fields);
 
 		var finalFields = buildFieldInitializers(fields);
 		return finalFields;
 	}
-	
-	static function buildSourceGetters(position, fields:Array<Field>, vertSource, fragSource){
-		var vertGetter = {
-			name: "get_"+"_vertSource",
-			doc: null,
-			meta: [],
-			access: [APrivate, AOverride],
-			kind: FFun({
-					args:[],
-					params:[],
-					ret: macro : String,
-					expr: macro{
-						return $v{vertSource};
-					}
-			}),
-			pos: Context.currentPos()
-		}
 
-		var fragGetter = {
-			name: "get_"+"_fragSource",
-			doc: null,
-			meta: [],
-			access: [APrivate, AOverride],
-			kind: FFun({
-					args:[],
-					params:[],
-					ret: macro : String,
-					expr: macro{
-						return $v{fragSource};
-					}
-			}),
-			pos: Context.currentPos()
-		}
-
-		fields.push(vertGetter);
-		fields.push(fragGetter);
-	}
-
-	static function buildConsts(position, fields, src){
-		var consts = GLSLTools.extractGlobals(src, ['const']);
-		for(c in consts){
-			//create const field
-			//when field changes, the shader should update const value and recompile 
-			
-			//#! check if defined already
-
-			//public var (CONSTANT):Dynamic = (value);
-			var constField = {
-				name: c.name,
-				doc: null,
-				meta: [],
-				access: [APublic],
-				kind: FProp("null","set",macro : Dynamic, null),
-				pos: Context.currentPos()
-			}
-
-			//public var set_(CONSTANT) (value:Dynamic){ // sets constant value, calls update shader }
-			var constSetter = {
-				name: "set_"+c.name,
-				doc: null,
-				meta: [],
-				access: [APrivate],
-				kind: FFun({
-						args:[{
-								name: 'value',
-								type: macro : Dynamic,
-								opt: null,
-								value: null
-						}],
-						params:[],
-						ret: null,
-						expr: macro {
-							trace("hey, set works");
-							Reflect.setField(this, $v{c.name}, value);
-							return value;
-						}
-					
-				}),
-				pos: Context.currentPos()
-			}
-
-			fields.push(constField);
-			fields.push(constSetter);
-
-			var printer = new haxe.macro.Printer();
-			trace(printer.printField(constField));
-			trace(printer.printField(constSetter));
-		}
-	}
-
-	static function buildAttributes(position, fields:Array<Field>, src:String) {
-		var attributes = GLSLTools.extractGlobals(src, ['attribute']);
+	static function buildAttributes(position, fields:Array<Field>, vertSource:String) {
+		var attributes = GLSLTools.extractGlobals(vertSource, ['attribute']);
 		for(a in attributes)
 			buildAttribute(position, fields, a);
 	}
 
-	static function buildUniforms(position, fields:Array<Field>, src:String) {
-		var uniforms = GLSLTools.extractGlobals(src, ['uniform']);
-		for(u in uniforms)
-			buildUniform(position, fields, u);
+	static function buildUniforms(position, fields:Array<Field>, vertSource:String, fragSource:String) {
+		var vuniforms = GLSLTools.extractGlobals(vertSource, ['uniform']);
+		var funiforms = GLSLTools.extractGlobals(fragSource, ['uniform']);
+		for(u in vuniforms) buildUniform(position, fields, u);
+		for(u in funiforms) buildUniform(position, fields, u);
+	}
+
+	static function buildConsts(position, fields:Array<Field>, vertSource:String, fragSource:String){
+		var vconsts = GLSLTools.extractGlobals(vertSource, ['const']);
+		var fconsts = GLSLTools.extractGlobals(fragSource, ['const']);
+		for(c in vconsts) buildConst(position, fields, c, Vert);
+		for(c in fconsts) buildConst(position, fields, c, Frag);
 	}
 	
 	static function buildAttribute(position, fields, attribute:GLSLGlobal):Void {
@@ -353,22 +264,64 @@ class ShaderBuilder
 			{index:#if !js -1 #else null #end, fieldName: f.name, typeName:pack.join(".") + "." + type.name, extrainfo:extrainfo } 
 		);
 	}
-	
-	static function pragmas(src:String):String {
-		var lines = src.split("\n");
-		var found:Bool = true;
-		for (i in 0...lines.length) {
-			var l = lines[i];
-			if (l.indexOf("#pragma include") > -1) {
-				var info = l.substring(l.indexOf('"') + 1, l.lastIndexOf('"'));
-				lines[i] = pragmas(sys.io.File.getContent(info));
-			}
+
+	static function buildConst(position, fields:Array<Field>,  const:GLSLGlobal, sourceKind:SourceKind){
+		if (MacroTools.checkIfFieldDefined(const.name)) return;
+		
+		//when field changes, the shader should update const value and recompile
+		//public var (CONSTANT):Dynamic = (value);
+		var constField = {
+			name: const.name,
+			doc: null,
+			meta: [],
+			access: [APublic],
+			kind: FProp("null","set",macro : Dynamic, null),
+			pos: Context.currentPos()
 		}
-		return lines.join("\n");
+
+		//public var set_(CONSTANT) (value:Dynamic){ // sets constant value, calls update shader }
+		var constSetterExpr:Expr;
+		switch(sourceKind){
+			case Vert:
+				constSetterExpr = macro {
+					// Reflect.setField(this, $v{c.name}, value);
+					this._vertSource = shaderblox.glsl.GLSLTools.injectConstValue(this._vertSource, $v{const.name}, value);
+					this.destroy();
+					return value;
+				}
+			case Frag:
+				constSetterExpr = macro {
+					// Reflect.setField(this, $v{c.name}, value);
+					this._fragSource = shaderblox.glsl.GLSLTools.injectConstValue(this._fragSource, $v{const.name}, value);
+					this.destroy();
+					return value;
+				}
+		}
+		var constSetter = {
+			name: "set_"+const.name,
+			doc: null,
+			meta: [],
+			access: [APrivate],
+			kind: FFun({
+					args:[{
+							name: 'value',
+							type: macro : Dynamic,
+							opt: null,
+							value: null
+					}],
+					params:[],
+					ret: null,
+					expr: constSetterExpr
+				}),
+			pos: Context.currentPos()
+		}
+
+		fields.push(constField);
+		fields.push(constSetter);
 	}
 
 	static function buildOverrides(fields:Array<Field>){		
-		var func = {
+		var createPropertiesFunc = {
 			name : "createProperties", 
 			doc : null, 
 			meta : [], 
@@ -376,7 +329,21 @@ class ShaderBuilder
 			kind : FFun( { args:[], params:[], ret:null, expr:macro { super.createProperties(); }} ),
 			pos : Context.currentPos() 
 		};
-		fields.push(func);
+		fields.push(createPropertiesFunc);
+
+		var initSourcesFunc = {
+			name : "initSources", 
+			doc : null, 
+			meta : [], 
+			access : [AOverride, APublic], 
+			kind : FFun( { args:[], params:[], ret:null, expr:macro {
+						this._vertSource = $v{vertSource};
+						this._fragSource = $v{fragSource};
+					}
+			} ),
+			pos : Context.currentPos() 
+		};
+		fields.push(initSourcesFunc);
 	}
 	
 	static function buildFieldInitializers(allFields:Array<Field>){
@@ -440,5 +407,17 @@ class ShaderBuilder
 		return allFields;
 	}
 
+	static function pragmas(src:String):String {
+		var lines = src.split("\n");
+		var found:Bool = true;
+		for (i in 0...lines.length) {
+			var l = lines[i];
+			if (l.indexOf("#pragma include") > -1) {
+				var info = l.substring(l.indexOf('"') + 1, l.lastIndexOf('"'));
+				lines[i] = pragmas(sys.io.File.getContent(info));
+			}
+		}
+		return lines.join("\n");
+	}
 	#end
 }
