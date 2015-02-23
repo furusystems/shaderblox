@@ -32,7 +32,7 @@ class GLSLTools {
         var currStr = src;
         //determine const position and length
     	while(reg.match(currStr)){
-        	var definitionPos = reg.matchedPos();
+        	var declarationPos = reg.matchedPos();
 
         	var rawDeclarationString = reg.matched(0);
 
@@ -64,13 +64,13 @@ class GLSLTools {
                 }
                 //convert 'compressed' coordinates into exploded (ie, taking into account ignored scopes)
                 //then add on the position of the 
-                var absoluteOffset = src.length - currStr.length + definitionPos.pos;
+                var absoluteOffset = src.length - currStr.length + declarationPos.pos;
                 var initializerRangeAbsolute = {
                     start: compressedToExploded(exploded, initializerRangeInRootStr.start) + absoluteOffset,
                     end: compressedToExploded(exploded, initializerRangeInRootStr.end) + absoluteOffset
                 }
 
-                //replace initializer in str
+                //replace initializer in src
                 var srcBefore = src.substring(0, initializerRangeAbsolute.start);
                 var srcAfter = src.substring(initializerRangeAbsolute.end);
                 return srcBefore+value+srcAfter;
