@@ -286,14 +286,14 @@ class ShaderBuilder
 				constSetterExpr = macro {
 					// Reflect.setField(this, $v{c.name}, value);
 					this._vertSource = shaderblox.glsl.GLSLTools.injectConstValue(this._vertSource, $v{const.name}, value);
-					this.destroy();
+					if(this._ready) this.destroy();
 					return value;
 				}
 			case Frag:
 				constSetterExpr = macro {
 					// Reflect.setField(this, $v{c.name}, value);
 					this._fragSource = shaderblox.glsl.GLSLTools.injectConstValue(this._fragSource, $v{const.name}, value);
-					this.destroy();
+					if(this._ready) this.destroy();
 					return value;
 				}
 		}

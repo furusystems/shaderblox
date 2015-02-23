@@ -207,6 +207,7 @@ class GLSLTools {
 
 
     //:todo: support multiple sets of brackets (eg: '(){}[]')
+    //:todo: needs error handling!
     static function bracketExplode(src, brackets:String /* eg: "{}" */){
         if(brackets.length != 2) return null;
 
