@@ -1,5 +1,18 @@
 [GLSL Language Spec](http://www.khronos.org/files/opengles_shading_language.pdf)
 
+
+Parser Ideas:
+	#1 Emscripten
+	- Alter emscripten's jsifier.js to output haxe
+	- Use emscripten to compile the glsl reference compiler to haxe from llvm bytecode
+
+	#2 Port stack.gl code
+
+
+
+
+
+
 Future:
 
 - Const should have haxe-based type

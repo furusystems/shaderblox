@@ -284,14 +284,14 @@ class ShaderBuilder
 		switch(sourceKind){
 			case Vert:
 				constSetterExpr = macro {
-					Reflect.setField(this, $v{c.name}, value);
+					Reflect.setField(this, $v{const.name}, value);
 					this._vertSource = shaderblox.glsl.GLSLTools.injectConstValue(this._vertSource, $v{const.name}, value);
 					if(this._ready) this.destroy();
 					return value;
 				}
 			case Frag:
 				constSetterExpr = macro {
-					Reflect.setField(this, $v{c.name}, value);
+					Reflect.setField(this, $v{const.name}, value);
 					this._fragSource = shaderblox.glsl.GLSLTools.injectConstValue(this._fragSource, $v{const.name}, value);
 					if(this._ready) this.destroy();
 					return value;

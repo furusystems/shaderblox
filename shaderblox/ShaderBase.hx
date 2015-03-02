@@ -66,7 +66,6 @@ class ShaderBase
 	}
 	
 	function compile(vertSource:String, fragSource:String) {
-		trace("Compiling" + this);
 		var vertexShader = GL.createShader (GL.VERTEX_SHADER);
 		GL.shaderSource (vertexShader, vertSource);
 		GL.compileShader (vertexShader);
