@@ -10,7 +10,7 @@ typedef GLSLGlobal = {?storageQualifier:String, ?precision:String, type:String, 
 //fairly primitive glsl parsing with regex
 class GLSLTools {
 	static var PRECISION_QUALIFIERS = ['lowp', 'mediump', 'highp'];
- 	static var MAIN_FUNC_REGEX = new EReg('(?:\\s|^)(?:('+PRECISION_QUALIFIERS.join('|')+')\\s+)?(void)\\s+(main)\\s*\\([^\\)]*\\)\\s*\\{', 'm');
+ 	static var MAIN_FUNC_REGEX = new EReg('(\\s|^)(('+PRECISION_QUALIFIERS.join('|')+')\\s+)?(void)\\s+(main)\\s*\\([^\\)]*\\)\\s*\\{', 'm');
  	static var STORAGE_QUALIFIERS = ['const', 'attribute', 'uniform', 'varying'];
  	static var STORAGE_QUALIFIER_TYPES = [
  		'const'     => ['bool','int','float','vec2','vec3','vec4','bvec2','bvec3','bvec4','ivec2','ivec3','ivec4','mat2','mat3','mat4'],
