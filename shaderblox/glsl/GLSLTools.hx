@@ -158,7 +158,7 @@ class GLSLTools {
     }
 	
 	static public function stripComments(src:String):String {
-		return (~/(?:\/\*(?:[\s\S]*?)\*\/)|(?:\/\/(?:.*)$)/igm).replace(src, '');//#1 = block comments, #2 = line comments
+		return (~/(\/\*([\s\S]*?)\*\/)|(\/\/(.*)$)/igm).replace(src, '');//#1 = block comments, #2 = line comments
 	}
 
 	static public function unifyLineEndings(src:String):String {
