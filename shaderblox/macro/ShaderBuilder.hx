@@ -42,6 +42,7 @@ class ShaderBuilder
 		var newFields:Array<Field> = [];
 		var sources:Array<Array<String>> = [];
 		var t2 = type;
+		
 		vertSource = "";
 		fragSource = "";
 		
@@ -455,6 +456,7 @@ class ShaderBuilder
 		
 		uniformFields = null;
 		attributeFields = null;
+		trace("Shader complete");
 		return allFields;
 	}
 	

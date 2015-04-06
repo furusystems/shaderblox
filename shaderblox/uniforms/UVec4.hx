@@ -1,7 +1,6 @@
 package shaderblox.uniforms;
 #if snow
 import snow.render.opengl.GL;
-import falconer.utils.Vector3D;
 #elseif lime
 import lime.gl.GL;
 import lime.utils.Vector3D;

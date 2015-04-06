@@ -3,7 +3,7 @@
   "url": "",
   "license": "MIT",
   "tags": [],
-  "description": "GLSL tools for Haxe/Lime",
+  "description": "GLSL tools for Haxe",
   "version": "1.0.0",
   "releasenote": "",
   "contributors": ["decept404"]

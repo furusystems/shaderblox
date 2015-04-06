@@ -6,5 +6,5 @@ package shaderblox;
  */
 class Shaderblox
 {
-	public static inline var REFERENCE_COMPILER_PATH:String = "";	
+	public static var REFERENCE_COMPILER_PATH:String = "";	
 }

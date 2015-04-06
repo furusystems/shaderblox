@@ -1,11 +1,4 @@
 package shaderblox;
-#if snow
-import snow.render.opengl.GL;
-#elseif lime
-import lime.gl.GL;
-import lime.gl.GLProgram;
-import lime.gl.GLShader;
-#end
 import shaderblox.attributes.Attribute;
 import shaderblox.uniforms.IAppliable;
 import shaderblox.uniforms.UTexture;

@@ -1,8 +1,8 @@
 package shaderblox;
 import shaderblox.attributes.Attribute;
-import snow.platform.native.render.opengl.GL.GLProgram;
-import snow.platform.native.render.opengl.GL.GLShader;
-import snow.render.opengl.GL;
+import snow.modules.opengl.GL;
+import snow.modules.opengl.GL.GLProgram;
+import snow.modules.opengl.GL.GLShader;
 
 /**
  * ...
