@@ -3,66 +3,81 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Expr.Field;
 import haxe.macro.Type.ClassType;
-import haxe.macro.Type.Ref;
 import haxe.rtti.Meta;
+
+import shaderblox.macro.MacroTools;
+import shaderblox.glsl.GLSLTools;
+import shaderblox.glsl.GLSLTools.GLSLGlobal;
+
 using Lambda;
 
 /**
  * ...
  * @author Andreas Rønning
  */
-private typedef FieldDef = {index:Int, typeName:String, fieldName:String, extrainfo:Dynamic };
+private typedef FieldDef = {index:Null<Int>, typeName:String, fieldName:String, extrainfo:Dynamic };
 private typedef AttribDef = {index:Int, typeName:String, fieldName:String, itemCount:Int };
+private enum SourceKind{
+	Frag;
+	Vert;
+}
 class ShaderBuilder
 {
 	#if macro
 	
 	static var uniformFields:Array<FieldDef>;
-	static var attributeFields:Array<AttribDef>;
-	static var vertSource:String;
-	static var fragSource:String;
-	static var asTemplate:Bool;
+	static var attributeFields:Array<AttribDef>;	
+	static var vertSource = "";
+	static var fragSource = "";
+
 	static inline var GL_FLOAT:Int = 0x1406;
 	static inline var GL_INT:Int = 0x1404;
+
+	static function getSources(type:ClassType):Array<String> {
+		var meta = type.meta.get();
+		var out = [];
+		var str:String;
+		for (i in meta.array()) {
+			switch(i.name) {
+				case ":vert":
+					str = MacroTools.getString(i.params[0]);
+					str = pragmas(GLSLTools.unifyLineEndings(str));
+					out[0] = str;
+				case ":frag":
+					str = MacroTools.getString(i.params[0]);
+					str = pragmas(GLSLTools.unifyLineEndings(str));
+					out[1] = str;
+			}
+		}
+		return out;
+	}
 	
 	public static function build():Array<Field> {
 		var type = Context.getLocalClass().get();
-		asTemplate = false;
+
+		//handle build-metas
 		for (f in type.meta.get().array()) {
 			if (f.name == ":shaderNoBuild") return null;
-			if (f.name == ":shaderTemplate") {
-				asTemplate = true;
-			}
 		}
 		
 		uniformFields = [];
 		attributeFields = [];
-		var position = haxe.macro.Context.currentPos();
-		var fields = Context.getBuildFields();
-		var newFields:Array<Field> = [];
-		var sources:Array<Array<String>> = [];
-		var t2 = type;
-		vertSource = "";
-		fragSource = "";
+
+		var position = Context.currentPos();
+
+		//get current class sources, taking care of overriding main()
+		var localSources:Array<String> = getSources(Context.getLocalClass().get());
+		var localVertSource = localSources[0];
+		var localFragSource = localSources[1];
 		
+		// -- Process Sources --
 		#if debug
 		trace("Building " + Context.getLocalClass());
 		#end
+		var sources:Array<Array<String>> = [];
 		
-		//static fields
-		
-		var ct = TPath( { pack:["shaderblox"], name:"Shader" } );
-		
-		var f = {
-			name:"instance",
-			kind:FVar(ct),
-			access:[APublic, AStatic],
-			pos:position
-		}
-		fields.push(f);
-		
-		//
-		
+		//get super class sources
+		var t2 = type;
 		while (t2.superClass != null) {
 			t2 = t2.superClass.t.get();
 			if (t2.superClass != null) {
@@ -72,109 +87,101 @@ class ShaderBuilder
 				sources.unshift(getSources(t2));
 			}
 		}
-		sources.push(getSources(Context.getLocalClass().get()));
-		for (i in sources) {
-			
-			if (i[0] != null) vertSource += i[0] + "\n";
-			if (i[1] != null) fragSource += i[1] + "\n";
+
+		//add local sources after super class so as to override anything beneath
+		sources.push(localSources);
+
+		//strip comments from sources
+		for (i in 0...sources.length) {
+			var s = sources[i];
+			if(s[0]==null)s[0]="";
+			if(s[1]==null)s[1]="";
+			s[0] = GLSLTools.stripComments(s[0]);
+			s[1] = GLSLTools.stripComments(s[1]);
 		}
-		
-		if(vertSource!=""){
-			vertSource = pragmas(unifyLineEndings(vertSource));
-			var lines:Array<String> = vertSource.split("\n");
-			buildUniforms(position, newFields, lines);
-			buildAttributes(position, newFields, lines);
-			vertSource = lines.join("\n");
-		}else {
-			throw "No vert source";
+
+		//find highest level class with main
+		var highestMainVert:Int = -1;
+		var highestMainFrag:Int = -1;
+		for (i in 0...sources.length) {
+			var s = sources[i];
+			if(GLSLTools.hasMain(s[0]))
+				highestMainVert = i;
+
+			if(GLSLTools.hasMain(s[1]))
+				highestMainFrag = i;
 		}
-		if(fragSource!=""){
-			fragSource = pragmas(unifyLineEndings(fragSource));
-			var lines:Array<String> = fragSource.split("\n");
-			buildUniforms(position, newFields, lines);
-			fragSource = lines.join("\n");
-		}else {
-			throw "No frag source";
+
+		//strip main from source if not highest
+		for (i in 0...sources.length) {
+			var s = sources[i];
+
+			if(i<highestMainVert)
+				s[0] = GLSLTools.stripMain(s[0]);
+			if(i<highestMainFrag)
+				s[1] = GLSLTools.stripMain(s[1]);
 		}
-		
+
+		// -- Assemble complete source --
+		vertSource = "";
+		fragSource = "";
+
+		var defaultESPrecision = "\n#ifdef GL_ES\nprecision mediump float;\n#endif\n";
+		vertSource += defaultESPrecision;
+		fragSource += defaultESPrecision;
+
+		for(i in 0...sources.length){
+			var s = sources[i];
+			vertSource += "\n"+s[0]+"\n";
+			fragSource += "\n"+s[1]+"\n";
+		}
+
+		// -- Add assembled glsl strings to class as fields --
+		var fields = Context.getBuildFields();
+
+		// -- Add fields to class from local glsl --
+		buildAttributes(position, fields, localVertSource);
+		buildUniforms(position, fields, localVertSource, localFragSource);
+		buildConsts(position, fields, localVertSource, localFragSource);
+
+		//override initSources() and createProperties()
 		buildOverrides(fields);
-		
-		return complete(newFields.concat(fields));
+
+		var finalFields = buildFieldInitializers(fields);
+		return finalFields;
 	}
 
-	static function getSources(type:ClassType):Array<String> {
-		var meta = type.meta.get();
-		var out = [];
-		var foundVert:Bool, foundFrag:Bool;
-		var str:String;
-		for (i in meta.array()) {
-			switch(i.name) {
-				case ":vert":
-					foundVert = true; 
-					str = getString(i.params[0]);
-					str = pragmas(unifyLineEndings(str));
-					out[0] = str;
-				case ":frag":
-					foundFrag = true; 
-					str = getString(i.params[0]);
-					str = pragmas(unifyLineEndings(str));
-					out[1] = str;
-			}
-		}
-		return out;
+	static function buildAttributes(position, fields:Array<Field>, vertSource:String) {
+		var attributes = GLSLTools.extractGlobals(vertSource, ['attribute']);
+		for(a in attributes)
+			buildAttribute(position, fields, a);
 	}
-	
-	
-	
-	static function buildAttributes(position, fields:Array<Field>, lines:Array<String>) {
-		for (l in lines) {
-			if (l.indexOf("attribute") > -1) {
-				buildAttribute(position, fields, l);
-			}
-		}
-	}
-	static function buildUniforms(position, fields:Array<Field>, lines:Array<String>) {
-		for (i in 0...lines.length) {
-			var l = lines[i];
-			if (l.indexOf("uniform") > -1) {
-				l = buildUniform(position, fields, l);
-			}
-			lines[i] = l;
-		}
-	}
-	
-	static function checkIfFieldDefined(name:String):Bool {
-		var type:ClassType = Context.getLocalClass().get();
-		while (type != null) {
-			for (fld in type.fields.get()) {
-				if (fld.name == name) {
-					return true;
-				}
-			}
-			if (type.superClass != null) {
-				type = type.superClass.t.get();
-			}else {
-				type = null;
-			}
-		}
-		return false;
-	}
-	
-	static function buildAttribute(position, fields, source:String):Void {
-		source = StringTools.trim(source);
-		var args = source.split(" ").slice(1);
-		var name = StringTools.trim(args[1].split(";").join(""));
 
+	static function buildUniforms(position, fields:Array<Field>, vertSource:String, fragSource:String) {
+		var vuniforms = GLSLTools.extractGlobals(vertSource, ['uniform']);
+		var funiforms = GLSLTools.extractGlobals(fragSource, ['uniform']);
+		for(u in vuniforms) buildUniform(position, fields, u);
+		for(u in funiforms) buildUniform(position, fields, u);
+	}
+
+	static function buildConsts(position, fields:Array<Field>, vertSource:String, fragSource:String){
+		var vconsts = GLSLTools.extractGlobals(vertSource, ['const']);
+		var fconsts = GLSLTools.extractGlobals(fragSource, ['const']);
+		for(c in vconsts) buildConst(position, fields, c, Vert);
+		for(c in fconsts) buildConst(position, fields, c, Frag);
+	}
+	
+	static function buildAttribute(position, fields, attribute:GLSLGlobal):Void {
 		//Avoid field redefinitions
-		if (checkIfFieldDefined(name)) return;
+		if (MacroTools.checkIfFieldDefined(attribute.name)) return;
 		
 		for (existing in attributeFields) {
-			if (existing.fieldName == name) return; 
+			if (existing.fieldName == attribute.name) return; 
 		}
 		var pack = ["shaderblox", "attributes"];
 		var itemCount:Int = 0;
 		var itemType:Int = -1;
-		switch(args[0]) {
+		switch(attribute.type) {
 			case "float":
 				itemCount = 1;
 				itemType = GL_FLOAT;
@@ -188,7 +195,7 @@ class ShaderBuilder
 				itemCount = 4;
 				itemType = GL_FLOAT;
 			default:
-				throw "Unknown attribute type: " + args[0];
+				throw "Unknown attribute type: " + attribute.type;
 		}
 		var attribClassName:String = switch(itemType) {
 			case GL_FLOAT:
@@ -198,7 +205,7 @@ class ShaderBuilder
 		}
 		var type = { pack : pack, name : attribClassName, params : [], sub : null };
 		var fld = {
-				name : name, 
+				name : attribute.name, 
 				doc : null, 
 				meta : [], 
 				access : [APublic], 
@@ -206,38 +213,21 @@ class ShaderBuilder
 				pos : position 
 			};
 		fields.push(fld);
-		var f = { index:attributeFields.length, fieldName:name, typeName:pack.join(".") + "." + attribClassName, itemCount:itemCount };
+		var f = { index:attributeFields.length, fieldName: fld.name, typeName:pack.join(".") + "." + attribClassName, itemCount:itemCount };
 		attributeFields.push(f);
 	}
-	static function buildUniform(position, fields, source:String):String {
-		source = StringTools.trim(source);
-		
-		//check annotations
-		var annotation:Null<String>;
-		var ai = source.indexOf("@");
-		if (ai > -1) {
-			//annotation found, which?
-			annotation = source.substr(ai, source.indexOf(" ", ai));
-			source = { var s = source.split(" "); s.shift(); s.join(" "); };
-			switch(annotation) {
-				case "@color":
-				default: throw "Unknown annotation: " + annotation;
-			}
-		}
-		
-		var args = source.split(" ").slice(1);
-		var name = StringTools.trim(args[1].split(";").join(""));
-		
-		if (checkIfFieldDefined(name)) return source;
+
+	static function buildUniform(position, fields, uniform:GLSLGlobal) {
+		if (MacroTools.checkIfFieldDefined(uniform.name)) return;
 		
 		for (existing in uniformFields) {
-			if (existing.fieldName == name) return source; 
+			if (existing.fieldName == uniform.name) return; 
 		}
-		
+
 		var pack = ["shaderblox", "uniforms"];
 		var type = { pack : pack, name : "UMatrix", params : [], sub : null };
 		var extrainfo:Dynamic = null;
-		switch(args[0]) {
+		switch(uniform.type) {
 			case "samplerCube":
 				type.name = "UTexture";
 				extrainfo = true;
@@ -246,27 +236,23 @@ class ShaderBuilder
 				extrainfo = false;
 			case "mat4":
 				type.name = "UMatrix";
+			case "bool":
+				type.name = "UBool";
+			case "int":
+				type.name = "UInt";
 			case "float":
 				type.name = "UFloat";
 			case "vec2":
 				type.name = "UVec2";
 			case "vec3":
-				if (annotation == "@color") {
-					type.name = "UColor3";
-				}else {
-					type.name = "UVec3";
-				}
+				type.name = "UVec3";
 			case "vec4":
-				if (annotation == "@color") {
-					type.name = "UColor4";
-				}else {
-					type.name = "UVec4";
-				}
+				type.name = "UVec4";
 			default:
-				throw "Unknown uniform type: " + args[0];
+				throw "Unknown uniform type: " + uniform.type;
 		}
 		var f = {
-				name : name, 
+				name : uniform.name, 
 				doc : null, 
 				meta : [], 
 				access : [APublic], 
@@ -275,58 +261,67 @@ class ShaderBuilder
 			};
 		fields.push(f);
 		uniformFields.push( 
-			{index:-1, fieldName:f.name, typeName:pack.join(".") + "." + type.name, extrainfo:extrainfo } 
+			{index:#if !js -1 #else null #end, fieldName: f.name, typeName:pack.join(".") + "." + type.name, extrainfo:extrainfo } 
 		);
-		return source;
 	}
-	
-	static function getString(e:Expr):String {
-		switch( e.expr ) {
-			case EConst(c):
-				switch( c ) {
-					case CString(s): return s;
-					case _:
+
+	static function buildConst(position, fields:Array<Field>,  const:GLSLGlobal, sourceKind:SourceKind){
+		if (MacroTools.checkIfFieldDefined(const.name)) return;
+		
+		//when field changes, the shader should update const value and recompile
+		//public var (CONSTANT):Dynamic = (value);
+		var constField = {
+			name: const.name,
+			doc: null,
+			meta: [],
+			access: [APublic],
+			kind: FProp("null","set",macro : Dynamic, null),
+			pos: Context.currentPos()
+		}
+
+		//public var set_(CONSTANT) (value:Dynamic){ // sets constant value, calls update shader }
+		var constSetterExpr:Expr;
+		switch(sourceKind){
+			case Vert:
+				constSetterExpr = macro {
+					Reflect.setField(this, $v{const.name}, value);
+					this._vertSource = shaderblox.glsl.GLSLTools.injectConstValue(this._vertSource, $v{const.name}, value);
+					if(this._ready) this.destroy();
+					return value;
 				}
-			case EField(e, f):
-				
-			case _:
+			case Frag:
+				constSetterExpr = macro {
+					Reflect.setField(this, $v{const.name}, value);
+					this._fragSource = shaderblox.glsl.GLSLTools.injectConstValue(this._fragSource, $v{const.name}, value);
+					if(this._ready) this.destroy();
+					return value;
+				}
 		}
-		throw("No const");
-	}
-	
-	static function unifyLineEndings(src:String):String {
-		return StringTools.trim(src.split("\r").join("\n").split("\n\n").join("\n"));
-	}
-	
-	static function pragmas(src:String):String {
-		var lines = src.split("\n");
-		var found:Bool = true;
-		for (i in 0...lines.length) {
-			var l = lines[i];
-			if (l.indexOf("#pragma include") > -1) {
-				var info = l.substring(l.indexOf('"') + 1, l.lastIndexOf('"'));
-				lines[i] = pragmas(sys.io.File.getContent(info));
-			}
+		var constSetter = {
+			name: "set_"+const.name,
+			doc: null,
+			meta: [],
+			access: [APrivate],
+			kind: FFun({
+					args:[{
+							name: 'value',
+							type: macro : Dynamic,
+							opt: null,
+							value: null
+					}],
+					params:[],
+					ret: null,
+					expr: constSetterExpr
+				}),
+			pos: Context.currentPos()
 		}
-		return lines.join("\n");
+
+		fields.push(constField);
+		fields.push(constSetter);
 	}
-	
-	static function buildOverrides(fields:Array<Field>) 
-	{
-		
-		var func = {
-			name : "setAttributes", 
-			doc : null, 
-			meta : [], 
-			access : [AOverride, APublic], 
-			kind : FFun( { args:[], params:[], ret:null, expr:macro {
-				instance.setAttributes();
-			}}),
-			pos : Context.currentPos() 
-		};
-		fields.push(func);
-		
-		var func = {
+
+	static function buildOverrides(fields:Array<Field>){		
+		var createPropertiesFunc = {
 			name : "createProperties", 
 			doc : null, 
 			meta : [], 
@@ -334,78 +329,24 @@ class ShaderBuilder
 			kind : FFun( { args:[], params:[], ret:null, expr:macro { super.createProperties(); }} ),
 			pos : Context.currentPos() 
 		};
-		fields.push(func);
-		
-		
-		var func = {
-			name : "destroy", 
+		fields.push(createPropertiesFunc);
+
+		var initSourcesFunc = {
+			name : "initSources", 
 			doc : null, 
 			meta : [], 
 			access : [AOverride, APublic], 
-			kind : FFun( { args:[], params:[], ret:null, expr:macro { 
-				if (instance != null) {
-					instance.dispose();
-					instance = null;
-				}
-			}} ),
+			kind : FFun( { args:[], params:[], ret:null, expr:macro {
+						this._vertSource = $v{vertSource};
+						this._fragSource = $v{fragSource};
+					}
+			} ),
 			pos : Context.currentPos() 
 		};
-		fields.push(func);
-		
-		var func = {
-			name : "activate", 
-			doc : null, 
-			meta : [], 
-			access : [AOverride, APublic], 
-			kind : FFun( { args:[], params:[], ret:null, expr:macro { 
-					if (instance == null) {
-						trace("Creating shader instance");
-						instance = new shaderblox.Shader();
-						instance.aStride = aStride;
-						instance.attributes = attributes;
-						instance.name = name;
-						instance.initFromSource($v { vertSource }, $v { fragSource } );
-						validateUniformLocations(instance);
-					}
-					if (!instance.ready) {
-						instance.rebuild();
-						validateUniformLocations(instance);
-					}
-					if (!ready) {
-						validateUniformLocations(instance);
-					}
-					
-					if (active) {
-						instance.setAttributes();
-						setUniforms();
-						return;
-					}
-					instance.bind();
-					setUniforms();
-					active = true;
-				}} ),
-			pos : Context.currentPos() 
-		};
-		fields.push(func);
-		
-		var func = {
-			name : "deactivate", 
-			doc : null, 
-			meta : [], 
-			access : [AOverride, APublic], 
-			kind : FFun( { args:[], params:[], ret:null, expr:macro { 					
-					if (!active) return;
-					instance.disableAttributes();
-					instance.release();
-					active = false;
-				}} ),
-			pos : Context.currentPos() 
-		};
-		fields.push(func);
+		fields.push(initSourcesFunc);
 	}
 	
-	static function complete(allFields:Array<Field>) 
-	{
+	static function buildFieldInitializers(allFields:Array<Field>){
 		for (f in allFields) {
 			switch(f.name) {
 				case "createProperties":
@@ -415,35 +356,43 @@ class ShaderBuilder
 								case EBlock(exprs):
 									//Populate our variables
 									//Create an array of uniforms
+									
 									for (uni in uniformFields) {
 										var name:String = uni.fieldName;
-										var i:Expr = null;
-										if (uni.typeName.split(".").pop() == "UTexture") {
-											i = instantiation(uni.typeName, [macro $v{uni.fieldName}, macro  $v{uni.index}, macro  $v{uni.extrainfo}]);
+										if (uni.typeName.split(".").pop() == "UTexture"){
+											exprs.push(
+												macro {
+													var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName }, $v { uni.index }, $v { uni.extrainfo } ]);
+													Reflect.setField(this, $v { name }, instance);
+													_uniforms.push(instance);
+												}
+											);
 										}else {
-											i = instantiation(uni.typeName, [macro $v{uni.fieldName}, macro  $v{uni.index}]);
+											exprs.push(
+												macro {
+													var instance = Type.createInstance( Type.resolveClass( $v { uni.typeName } ), [$v { uni.fieldName}, $v { uni.index } ]);
+													Reflect.setField(this, $v { name }, instance);
+													_uniforms.push(instance);
+												}
+											);
 										}
-										exprs.push(
-											macro {
-												uniforms.push($i { name } = $ { i });
-											}
-										);
 									}
 									var stride:Int = 0;
 									for (att in attributeFields) {
 										var name:String = att.fieldName;
 										var numItems:Int = att.itemCount;
 										stride += numItems * 4;
-										var i:Expr = instantiation(att.typeName, [macro $v{att.fieldName}, macro  $v{att.index}, macro  $v{numItems}]);
 										exprs.push(
 											macro {
-												attributes.push($ { i });
+												var instance = Type.createInstance( Type.resolveClass( $v { att.typeName } ), [$v { att.fieldName }, $v { att.index }, $v { numItems } ]);
+												Reflect.setField(this, $v { name }, instance);
+												_attributes.push(instance);
 											}
 										);
 									}
 									exprs.push(
 										macro {
-											aStride += $v { stride };
+											_aStride += $v { stride };
 										}
 									);
 								default:
@@ -457,12 +406,18 @@ class ShaderBuilder
 		attributeFields = null;
 		return allFields;
 	}
-	
-	static function instantiation(name:String, ?args:Array<Expr>):Expr {
-		if (args == null) args = [];
-		var s = name.split(".");
-		name = s.pop();
-		return { expr:ENew( { name:name, pack:s }, args), pos:Context.currentPos() };
+
+	static function pragmas(src:String):String {
+		var lines = src.split("\n");
+		var found:Bool = true;
+		for (i in 0...lines.length) {
+			var l = lines[i];
+			if (l.indexOf("#pragma include") > -1) {
+				var info = l.substring(l.indexOf('"') + 1, l.lastIndexOf('"'));
+				lines[i] = pragmas(sys.io.File.getContent(info));
+			}
+		}
+		return lines.join("\n");
 	}
 	#end
 }

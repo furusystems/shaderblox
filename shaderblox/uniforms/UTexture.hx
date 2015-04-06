@@ -1,10 +1,13 @@
 package shaderblox.uniforms;
 #if snow
-import snow.render.opengl.GL;
+import snow.modules.opengl.GL;
 #elseif lime
-import lime.gl.GL;
-import lime.gl.GLTexture;
+import lime.graphics.opengl.GL;
+import lime.graphics.opengl.GLTexture;
+import lime.graphics.opengl.GLUniformLocation;
 #end
+
+using shaderblox.helpers.GLUniformLocationHelper;
 
 /**
  * GLTexture uniform
@@ -15,13 +18,13 @@ class UTexture extends UniformBase<GLTexture> implements IAppliable  {
 	static var lastActiveTexture:Int = -1;
 	var cube:Bool;
 	public var type:Int;
-	public function new(name:String, index:Int, cube:Bool = false) {
+	public function new(name:String, index:GLUniformLocation, cube:Bool = false) {
 		this.cube = cube;
 		type = cube?GL.TEXTURE_CUBE_MAP:GL.TEXTURE_2D;
 		super(name, index, null);
 	}
 	public inline function apply():Void {
-		if (data == null || location==-1 ) return;
+		if (data == null) return;
 		var idx = GL.TEXTURE0 + samplerIndex;
 		if (lastActiveTexture != idx) {
 			GL.activeTexture(lastActiveTexture = idx);

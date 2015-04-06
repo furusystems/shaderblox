@@ -1,3 +1,24 @@
+## Fork Motive ##
+- ~~Compatibility with lime-next~~
+- ~~Add HTML target support~~
+- ~~Improve GLSL parsing and fix bugs~~
+	
+Messed up but valid declerations such as the following now work:
+```
+uniform highp
+/* ? */
+vec3 a, b, 
+	c; 
+```
+- ~~Consts support with runtime recompilation~~
+- Add missing uniform data types (ivec3, bvec2 etc...)
+- Uniform array support, eg: `uniform vec4 lightPosition[8];`
+- Clean up ShaderBuilder
+- Upload uniform only if changed (maybe abstract based uniforms?)
+- Method overrides in inheritance
+
+----------
+
 Shaderblox
 ==========
 

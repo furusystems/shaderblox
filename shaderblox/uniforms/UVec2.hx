@@ -1,34 +1,38 @@
 package shaderblox.uniforms;
+
+using shaderblox.helpers.GLUniformLocationHelper;
+
 #if snow
-import snow.render.opengl.GL;
+import snow.modules.opengl.GL;
+class Vector2{
+	public var x:Float;
+	public var y:Float;
+	public function new(x:Float = 0, y:Float = 0){
+		this.x = x;
+		this.y = y;
+	}
+	public function set(x:Float, y:Float){
+		this.x = x;
+		this.y = y;
+	}
+}
 #elseif lime
-import lime.gl.GL;
+import lime.graphics.opengl.GL;
+import lime.graphics.opengl.GLUniformLocation;
+import lime.math.Vector2;
 #end
+
 
 /**
  * Vector2 float uniform
  * @author Andreas Rønning
  */
-#if flywheel
-private typedef Pt = com.furusystems.flywheel.geom.Vector2D;
-#else
-private class Pt {
-	public var x:Float;
-	public var y:Float;
-	public inline function new() { }
-}
-#end
-class UVec2 extends UniformBase<Pt> implements IAppliable  {
-	public function new(name:String, index:Int, x:Float = 0, y:Float = 0) {
-		var p = new Pt();
-		p.x = x;
-		p.y = y;
-		super(name, index, p);
+class UVec2 extends UniformBase<Vector2> implements IAppliable  {
+	public function new(name:String, index:GLUniformLocation, x:Float = 0, y:Float = 0) {
+		super(name, index, new Vector2(x, y));
 	}
 	public inline function apply():Void {
-		if (location != -1) {
-			GL.uniform2f(location, data.x, data.y);
-			dirty = false;
-		}
+		GL.uniform2f(location, data.x, data.y);
+		dirty = false;
 	}
 }
