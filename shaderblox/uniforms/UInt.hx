@@ -1,12 +1,19 @@
 package shaderblox.uniforms;
-import snow.render.opengl.GL;
+#if snow
+import snow.modules.opengl.GL;
+#elseif lime
+import lime.graphics.opengl.GL;
+import lime.graphics.opengl.GLUniformLocation;
+#end
+
+using shaderblox.helpers.GLUniformLocationHelper;
 
 /**
  * Int uniform
  * @author Andreas Rønning
  */
 class UInt extends UniformBase<Int> implements IAppliable  {
-	public function new(name:String, index:Int, f:Int = 0) {
+	public function new(name:String, index:GLUniformLocation, f:Int = 0) {
 		super(name, index, f);
 	}
 	public inline function apply():Void {

@@ -1,14 +1,11 @@
 package shaderblox;
 import shaderblox.attributes.Attribute;
 import snow.modules.opengl.GL;
-import snow.modules.opengl.GL.GLProgram;
-import snow.modules.opengl.GL.GLShader;
 
 /**
  * ...
  * @author Andreas Rønning
  */
-@:allow(shaderblox.ShaderBase)
 class Shader
 {
 	public var uniformLocations:Map<String,Int>;
@@ -26,7 +23,7 @@ class Shader
 	
 	public var numReferences:Int;
 	public var name:String;
-	function new() 
+	public function new() 
 	{
 		attributes = [];
 	}
